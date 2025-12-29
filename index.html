@@ -71,9 +71,10 @@
     @media print {
       body * { visibility: hidden; }
       #printArea, #printArea * { visibility: visible; }
-      #printArea { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; }
+      #printArea { position: absolute; left: 0; top: 0; width: 58mm; margin: 0; padding: 0; font-size: 12px; }
       .modal { position: absolute; left: 0; top: 0; width: 100%; height: auto; background: white; display: block !important; }
-      .modal-content { width: 100%; margin: 0; padding: 0; box-shadow: none; }
+      .modal-content { width: 100%; margin: 0; padding: 0; box-shadow: none; border: none; }
+      button { display: none !important; }
     }
   </style>
 </head>
@@ -830,11 +831,18 @@
             const it = r.items.find(x => x.id === p.id) || { q: 0 }; 
             return `<td>${it.q || '-'}</td>`; 
         }).join('');
-
-        return `<tr class="border-b"><td>${r.dt}</td>${prodCols}<td>${r.items.reduce((s, x) => s + x.r, 0)}</td><td>₦${fmt(r.prod)}</td><td>₦${fmt(r.misc)}</td><td>₦${fmt(r.tot)}</td><td>₦${fmt((r.exp || []).reduce((s, x) => s + x.a, 0))}</td><td>₦${fmt(r.prof)}</td><td>₦${fmt(r.var)}</td><td><button onclick="load2(${r.id})" class="bg-blue-500 text-white px-1">E</button></td></tr>`;
+        // ADDED DELETE BUTTON (X) HERE
+        return `<tr class="border-b"><td>${r.dt}</td>${prodCols}<td>${r.items.reduce((s, x) => s + x.r, 0)}</td><td>₦${fmt(r.prod)}</td><td>₦${fmt(r.misc)}</td><td>₦${fmt(r.tot)}</td><td>₦${fmt((r.exp || []).reduce((s, x) => s + x.a, 0))}</td><td>₦${fmt(r.prof)}</td><td>₦${fmt(r.var)}</td><td><button onclick="load2(${r.id})" class="bg-blue-500 text-white px-1">E</button> <button onclick="del2('${r.id}')" class="bg-red-500 text-white px-1">X</button></td></tr>`;
       }).join('');
       setT('allSales2', fmt(gS)); setT('allProf2', fmt(gP));
       calcCapStatus();
+    }
+    
+    // NEW: Delete Function for Production
+    window.del2 = async (id) => {
+        if(!confirm("Delete this record permanently?")) return;
+        const r = h2.find(x => x.id === id);
+        if(r) await deleteDoc(doc(db2, "records", r.fid));
     }
 
     window.load2 = (id) => {
@@ -1082,15 +1090,26 @@
       $('valCount').innerText = tData3.filter(t => t.collected && t.collDate === today).reduce((s, t) => s + (t.ph||0) + (t.pb||0) + (t.ch||0), 0);
       updateTimers();
     }
+    
+    // UPDATED HTML to include DELETE button
     function ticketHtml(t, isH) {
       // Determine badge based on payment status
       const pBadge = t.payStatus === 'later' 
         ? `<span class="bg-red-500 text-white text-xs px-2 py-1 rounded ml-2">LATER</span>` 
         : `<span class="bg-green-500 text-white text-xs px-2 py-1 rounded ml-2">PAID</span>`;
 
-      if(isH) return `<div class="ticket"><b>${t.name}</b> <span class="code-badge">#${t.code}</span><br><small>Out: ${t.collDate}</small> <button style="float:right" onclick="revert3('${t.id}')">↩️</button></div>`;
+      // ADDED DELETE BUTTON (Trash Can) HERE
+      if(isH) return `<div class="ticket"><b>${t.name}</b> <span class="code-badge">#${t.code}</span><br><small>Out: ${t.collDate}</small> <div style="float:right"><button onclick="revert3('${t.id}')">↩️</button> <button onclick="delTicket3('${t.id}')">🗑️</button></div></div>`;
+      
       return `<div class="ticket"><div class="flex justify-between items-center"><div><b>${t.name}</b> <span class="code-badge">#${t.code}</span></div>${pBadge}</div><div class="timer-area"><span>In: ${t.jsDate.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span><span class="time-val" id="timer-${t.id}">0h 0m</span></div><small>📱${t.ph}🔋${t.pb}🔌${t.ch} | ₦${t.price}</small><div class="flex gap-2 mt-2"><button class="bg-black text-white px-3 py-1 rounded" onclick="openPrintModal('${t.id}')">🖨️</button><button class="bg-yellow-500 px-3 py-1 rounded" onclick="startEdit3('${t.id}')">✏️</button><button class="bg-green-600 text-white px-3 py-1 rounded w-full" onclick="collect3('${t.id}')">Collect</button></div></div>`;
     }
+    
+    // NEW: Delete Function for Charging Tickets
+    window.delTicket3 = async (id) => {
+        if(!confirm("Delete ticket history?")) return;
+        await deleteDoc(doc(db3, "tickets", id));
+    }
+    
     function updateTimers() {
       const now = new Date();
       tData3.filter(t => !t.collected).forEach(t => {
@@ -1131,7 +1150,7 @@
                 <span style="font-size:12px; font-weight:bold">${payTxt}</span>
             </div>
             <div style="font-size:10px; font-weight:bold; margin-top:10px; text-align:center;">
-                Confirm device condition before leaving.
+                Check device before leaving.
             </div>
             <div class="r-cut-line"></div>
             <div class="sticker-container">${stickers}</div>`;
@@ -1146,4 +1165,4 @@
     window.addEventListener('online', upSt); window.addEventListener('offline', upSt); upSt();
   </script>
 </body>
-                                                                                                                                                                                                                          </html>
+                                                                                </html>
