@@ -8,6 +8,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
     /* --- SECURITY LOCK SCREEN --- */
@@ -169,7 +170,11 @@
       
       <div id="histModal" class="fixed inset-0 modal-overlay z-50 flex items-center justify-center hidden">
         <div class="bg-white rounded-lg p-6 w-[500px] shadow-2xl">
-          <h3 class="text-xl font-bold mb-4">History: <span id="histName" class="text-blue-600"></span></h3>
+          <div class="flex justify-between items-center mb-4">
+             <h3 class="text-xl font-bold">History: <span id="histName" class="text-blue-600"></span></h3>
+             <button onclick="genStatementPDF()" class="bg-indigo-600 text-white px-3 py-1 rounded text-sm">📄 Stmt</button>
+          </div>
+          <input type="hidden" id="histCurId">
           <div class="max-h-64 overflow-y-auto"><table class="w-full text-sm"><thead class="bg-gray-100"><tr><th class="p-2">Date</th><th class="p-2 text-right">Amount</th><th class="p-2 text-center">Action</th></tr></thead><tbody id="histBody"></tbody></table></div>
           <p class="text-right font-bold mt-2">Total: ₦<span id="histTotal">0.00</span></p>
           <div class="flex justify-end mt-4"><button onclick="toggle('histModal',0)" class="bg-gray-300 px-4 py-2 rounded">Close</button></div>
@@ -248,10 +253,17 @@
     
         <div class="bg-gray-100 rounded-xl p-3 mb-3">
           <h3 class="font-semibold">3. Expenses</h3>
-          <div class="flex gap-2 text-sm my-2">
-            <input id="expDesc" placeholder="Item" class="p-1 rounded border w-full">
-            <input id="expAmt" type="number" placeholder="Amt" class="p-1 rounded border w-full">
-            <button onclick="addExp()" id="expBtn" class="bg-red-600 text-white px-3 rounded">Add</button>
+          <div class="flex gap-2 text-sm my-2 items-center">
+            <select id="expCat" class="p-1 rounded border text-xs w-1/3 h-8">
+                <option value="General">General</option>
+                <option value="Ingredients">Ingredients</option>
+                <option value="Fuel">Fuel/Trans</option>
+                <option value="Staff">Staff</option>
+                <option value="Repairs">Repairs</option>
+            </select>
+            <input id="expDesc" placeholder="Item" class="p-1 rounded border w-full h-8">
+            <input id="expAmt" type="number" placeholder="Amt" class="p-1 rounded border w-1/4 h-8">
+            <button onclick="addExp()" id="expBtn" class="bg-red-600 text-white px-3 rounded h-8">Add</button>
           </div>
           <div class="text-sm font-semibold">Total Exp: ₦<span id="expTot">0</span></div>
           <ul id="expList" class="mt-1"></ul>
@@ -330,6 +342,11 @@
              📊 View Reports
            </button>
         </div>
+        
+        <div class="bg-white p-4 rounded-xl shadow mb-4">
+            <h3 class="text-sm font-bold text-gray-500 mb-2">Weekly Revenue Chart</h3>
+            <canvas id="revChart" style="max-height: 200px; width: 100%;"></canvas>
+        </div>
       
         <div class="card" style="background: #e0f2fe; border: 2px solid #0284c7;">
           <h3 class="text-blue-900 font-bold mb-2">🚀 Quick Collect by Code</h3>
@@ -348,8 +365,17 @@
             <div class="device-box"><label>P-BANKS</label><input type="number" id="pbCount" value="0" min="0" class="w-full text-center border p-1 rounded"></div>
             <div class="device-box"><label>CHARGERS</label><input type="number" id="chCount" value="0" min="0" class="w-full text-center border p-1 rounded"></div>
           </div>
-          
-          <input type="number" id="price3" value="200" placeholder="Price" class="w-full border p-2 rounded my-2">
+
+          <div class="flex gap-2 my-2">
+             <div class="w-1/2">
+                <label class="text-xs font-bold text-gray-500">Price (₦)</label>
+                <input type="number" id="price3" value="200" class="w-full border p-2 rounded">
+             </div>
+             <div class="w-1/2">
+                <label class="text-xs font-bold text-gray-500">Socket #</label>
+                <input type="number" id="socketNum" placeholder="#" class="w-full border p-2 rounded">
+             </div>
+          </div>
           
           <div class="flex gap-4 mb-3 border p-2 rounded bg-gray-50">
              <span class="text-sm font-bold text-gray-600">Payment Status:</span>
@@ -581,8 +607,14 @@
         const isDue = rem > 0.01 && (new Date() - new Date(r.dateTime))/(864e5) >= rDays;
         totalOwed += rem > 0 ? rem : 0; totalCol += pd;
         const rowCls = stat==='full'?'s-full':(isDue?'s-over':(stat==='partial'?'s-part':'hover:bg-gray-50'));
+        
+        // WA Link
+        const waNum = r.phone.replace(/^0/, '234').replace(/\D/g,'');
+        const waMsg = encodeURIComponent(`Hello ${r.name}, this is a reminder regarding your balance of ${cur(rem)} at Starbite.`);
+        const waBtn = `<a href="https://wa.me/${waNum}?text=${waMsg}" target="_blank" class="bg-green-500 text-white px-2 py-1 rounded text-xs no-underline">📲</a>`;
+
         const btns = stat === 'full' ? '<span class="text-gray-400 text-xs">Paid</span>' : 
-          `<div class="flex items-center gap-1 mb-1"><input id="qp-${r.id}" type="number" class="border p-1 w-16 text-xs" placeholder="Amt"><button onclick="quickPay('${r.id}')" class="bg-green-600 text-white px-2 rounded text-xs">Pay</button></div>
+          `<div class="flex items-center gap-1 mb-1"><input id="qp-${r.id}" type="number" class="border p-1 w-16 text-xs" placeholder="Amt"><button onclick="quickPay('${r.id}')" class="bg-green-600 text-white px-2 rounded text-xs">Pay</button> ${waBtn}</div>
            <button onclick="openPay('${r.id}')" class="text-xs text-blue-500 hover:underline">Log Past Date</button>`;
         return `<tr class="${rowCls} border-b"><td class="p-2 border">${r.name}</td><td class="p-2 border">${r.phone}</td><td class="p-2 border">${cur(r.amount)}</td><td class="p-2 border text-green-700">${cur(pd)}</td><td class="p-2 border font-bold ${rem>0.01?'text-red-700':''}">${cur(rem)}</td><td class="p-2 border">${new Date(r.dateTime).toLocaleDateString('en-CA')}</td><td class="p-2 border capitalize">${stat}${isDue && stat!=='full'?' ⚠️':''}</td><td class="p-2 border space-y-1">${btns}<div class="flex gap-1 pt-1 border-t mt-1"><button onclick="hist1('${r.id}')" class="bg-blue-500 text-white px-2 py-1 rounded text-xs">Hist</button><button onclick="edit1('${r.id}')" class="bg-yellow-500 text-white px-2 py-1 rounded text-xs">Edit</button><button onclick="del1('${r.id}')" class="bg-red-500 text-white px-2 py-1 rounded text-xs">Del</button></div></td></tr>`;
       }).join('');
@@ -636,10 +668,44 @@
     window.permDel1 = async (id) => { if(confirm("Permanent Delete?")) await deleteDoc(doc(db1, "trash", id)); }
     window.hist1 = (id) => {
         const r = recs.find(x=>x.id===id);
+        $('histCurId').value = id;
         $('histName').innerText = r.name; $('histTotal').innerText = sum(r.payments).toFixed(2);
         $('histBody').innerHTML = (r.payments || []).sort((a,b)=>new Date(b.dateTime)-new Date(a.dateTime)).map(p => `<tr class="border-b"><td class="p-2">${new Date(p.dateTime).toLocaleDateString()}</td><td class="p-2 text-right">${cur(p.amount)}</td><td class="p-2 text-center text-gray-400 text-xs">(ReadOnly)</td></tr>`).join('');
         toggle('histModal',1);
     }
+    
+    // NEW: Generate Customer Statement PDF
+    window.genStatementPDF = () => {
+        const id = $('histCurId').value;
+        const r = recs.find(x => x.id === id);
+        if(!r) return;
+        
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        doc.setFontSize(16);
+        doc.text("STARBITE - ACCOUNT STATEMENT", 14, 20);
+        doc.setFontSize(12);
+        doc.text(`Customer: ${r.name}`, 14, 30);
+        doc.text(`Phone: ${r.phone}`, 14, 36);
+        doc.text(`Original Debt: ${cur(r.amount)} for ${r.product}`, 14, 42);
+        
+        const rows = (r.payments || []).map(p => [new Date(p.dateTime).toLocaleDateString(), cur(p.amount)]);
+        doc.autoTable({
+            head: [['Date Paid', 'Amount']],
+            body: rows,
+            startY: 50
+        });
+        
+        const paid = sum(r.payments);
+        const owed = r.amount - paid;
+        
+        doc.text(`Total Paid: ${cur(paid)}`, 14, doc.lastAutoTable.finalY + 10);
+        doc.setTextColor(200, 0, 0);
+        doc.text(`Balance Owed: ${cur(owed)}`, 14, doc.lastAutoTable.finalY + 16);
+        
+        doc.save(`Statement_${r.name}.pdf`);
+    };
 
     // ==========================================
     // APP 2 JS (PRODUCTION)
@@ -699,9 +765,15 @@
                 <input type="number" placeholder="Qty" data-id="${p.id}" value="${curVals[p.id]||''}" class="qIn w-full p-1 border rounded mt-1">
                 <div class="flex justify-between mt-1">
                     <span class="text-xs">₦<span class="lTot">0</span></span>
-                    <input type="number" placeholder="Rem" data-pid="${p.id}" class="rIn w-12 p-1 border rounded text-xs" value="${curRems[p.id]||0}">
+                    <input type="number" placeholder="Rem" data-pid="${p.id}" class="rIn w-12 p-1 border rounded text-xs" oninput="checkLow(this)" value="${curRems[p.id]||0}">
                 </div>
             </div>`).join('');
+    }
+
+    // NEW: Check Low Stock
+    window.checkLow = (el) => {
+        if(Number(el.value) < 5) el.classList.add('text-red-600', 'font-bold');
+        else el.classList.remove('text-red-600', 'font-bold');
     }
 
     // Render the Manager List
@@ -777,7 +849,9 @@
       document.querySelectorAll('.qIn').forEach(i => {
         const p = products.find(x => x.id === i.dataset.id);
         if(p) {
-            const rem = Number(i.parentElement.querySelector('.rIn').value) || 0;
+            const remInp = i.parentElement.querySelector('.rIn');
+            const rem = Number(remInp.value) || 0;
+            checkLow(remInp); // trigger color check
             const sQty = Math.max(0, (Number(i.value) || 0) - rem), amt = sQty * p.p;
             i.parentElement.querySelector('.lTot').innerText = fmt(amt); pTot += amt;
         }
@@ -800,13 +874,18 @@
       return { pTot, mSale, day, vari, fl, ch };
     }
     
+    // UPDATED: Expense Categories
     window.addExp = () => {
-      const d = $('expDesc').value, a = val('expAmt'); if (!d || a <= 0) return alert('Invalid Expense');
-      if (editExpIdx !== null) exp[editExpIdx] = { d, a }; else exp.push({ d, a });
+      const d = $('expDesc').value, a = val('expAmt'), c = $('expCat').value;
+      if (!d || a <= 0) return alert('Invalid Expense');
+      if (editExpIdx !== null) exp[editExpIdx] = { d, a, c }; else exp.push({ d, a, c });
       $('expDesc').value = ''; $('expAmt').value = ''; editExpIdx = null; $('expBtn').innerText = 'Add'; renExp();
     }
-    function renExp() { setT('expTot', fmt(exp.reduce((s, x) => s + x.a, 0))); $('expList').innerHTML = exp.map((x, i) => `<li class="flex justify-between text-xs mt-1"><span>${x.d}: ₦${fmt(x.a)}</span><div><button onclick="edExp(${i})" class="bg-gray-400 text-white px-1 mr-1">E</button><button onclick="delExp(${i})" class="bg-red-500 text-white px-1">X</button></div></li>`).join(''); }
-    window.edExp = (i) => { $('expDesc').value = exp[i].d; $('expAmt').value = exp[i].a; editExpIdx = i; $('expBtn').innerText = 'Upd'; }
+    function renExp() { 
+        setT('expTot', fmt(exp.reduce((s, x) => s + x.a, 0))); 
+        $('expList').innerHTML = exp.map((x, i) => `<li class="flex justify-between text-xs mt-1"><span>[${x.c||'Gen'}] ${x.d}: ₦${fmt(x.a)}</span><div><button onclick="edExp(${i})" class="bg-gray-400 text-white px-1 mr-1">E</button><button onclick="delExp(${i})" class="bg-red-500 text-white px-1">X</button></div></li>`).join(''); 
+    }
+    window.edExp = (i) => { $('expDesc').value = exp[i].d; $('expAmt').value = exp[i].a; $('expCat').value = exp[i].c || 'General'; editExpIdx = i; $('expBtn').innerText = 'Upd'; }
     window.delExp = (i) => { exp.splice(i, 1); renExp(); }
     
     window.save2 = async () => {
@@ -971,25 +1050,28 @@
     const db3 = getFirestore(app3);
     const col3 = collection(db3, "tickets");
 
-    let tData3 = [], editId3 = null;
+    let tData3 = [], editId3 = null, chartInstance = null;
 
     onSnapshot(query(col3, orderBy("ts", "desc")), (snap) => {
       tData3 = snap.docs.map(d => ({ ...d.data(), id: d.id, jsDate: d.data().ts ? d.data().ts.toDate() : new Date() }));
       render3();
+      renderChart();
     });
 
     window.saveTicket = async () => {
       const name = $('custName').value.trim(); if(!name) return alert("Name required");
-      // GET PAYMENT STATUS
+      // GET PAYMENT STATUS & SOCKET
       const payStatus = document.querySelector('input[name="payStatus"]:checked').value;
+      const socket = $('socketNum').value;
 
-      const data = { name, code: Math.floor(1000 + Math.random() * 9000), ph: +$('phCount').value, pb: +$('pbCount').value, ch: +$('chCount').value, price: +$('price3').value, collected: false, payStatus };
+      const data = { name, code: Math.floor(1000 + Math.random() * 9000), ph: +$('phCount').value, pb: +$('pbCount').value, ch: +$('chCount').value, price: +$('price3').value, collected: false, payStatus, socket };
       if(editId3) { await updateDoc(doc(db3, "tickets", editId3), data); cancelEdit3(); }
       else { const dRef = await addDoc(col3, { ...data, charged: false, ts: serverTimestamp() }); resetForm3(); openPrintModal(dRef.id, data, data.code); }
     };
     window.startEdit3 = (id) => {
       const t = tData3.find(x => x.id === id); editId3 = id;
       $('custName').value = t.name; $('phCount').value = t.ph; $('pbCount').value = t.pb; $('chCount').value = t.ch; $('price3').value = t.price;
+      $('socketNum').value = t.socket || '';
       
       // SET RADIO BUTTON
       const radios = document.getElementsByName('payStatus');
@@ -1074,6 +1156,48 @@
         $('repBreakdown').innerText = `📱${ph} | 🔋${pb} | 🔌${ch}`;
     };
     // ----------------------------------------
+    
+    // NEW: VISUAL CHART LOGIC
+    function renderChart() {
+        if(!tData3.length) return;
+        
+        // Aggregate last 7 days revenue
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const today = new Date();
+        const labels = [], data = [];
+        
+        for(let i=6; i>=0; i--) {
+            const d = new Date(today);
+            d.setDate(today.getDate() - i);
+            const dStr = d.toLocaleDateString();
+            
+            labels.push(days[d.getDay()]);
+            
+            // Sum collected revenue for this day
+            const dailyTotal = tData3
+                .filter(t => t.collected && t.collDate === dStr)
+                .reduce((sum, t) => sum + (t.price || 0), 0);
+            data.push(dailyTotal);
+        }
+
+        const ctx = document.getElementById('revChart');
+        if(chartInstance) chartInstance.destroy();
+        
+        chartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Revenue (₦)',
+                    data: data,
+                    backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                    borderColor: 'rgb(59, 130, 246)',
+                    borderWidth: 1
+                }]
+            },
+            options: { scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
+        });
+    }
 
     window.render3 = () => {
       const term = $('histSearch').value.toLowerCase();
@@ -1091,17 +1215,19 @@
       updateTimers();
     }
     
-    // UPDATED HTML to include DELETE button
+    // UPDATED HTML to include DELETE button & SOCKET info
     function ticketHtml(t, isH) {
       // Determine badge based on payment status
       const pBadge = t.payStatus === 'later' 
         ? `<span class="bg-red-500 text-white text-xs px-2 py-1 rounded ml-2">LATER</span>` 
         : `<span class="bg-green-500 text-white text-xs px-2 py-1 rounded ml-2">PAID</span>`;
+      
+      const sBadge = t.socket ? `<span class="bg-gray-800 text-white text-xs px-2 py-1 rounded ml-1">🔌${t.socket}</span>` : '';
 
       // ADDED DELETE BUTTON (Trash Can) HERE
       if(isH) return `<div class="ticket"><b>${t.name}</b> <span class="code-badge">#${t.code}</span><br><small>Out: ${t.collDate}</small> <div style="float:right"><button onclick="revert3('${t.id}')">↩️</button> <button onclick="delTicket3('${t.id}')">🗑️</button></div></div>`;
       
-      return `<div class="ticket"><div class="flex justify-between items-center"><div><b>${t.name}</b> <span class="code-badge">#${t.code}</span></div>${pBadge}</div><div class="timer-area"><span>In: ${t.jsDate.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span><span class="time-val" id="timer-${t.id}">0h 0m</span></div><small>📱${t.ph}🔋${t.pb}🔌${t.ch} | ₦${t.price}</small><div class="flex gap-2 mt-2"><button class="bg-black text-white px-3 py-1 rounded" onclick="openPrintModal('${t.id}')">🖨️</button><button class="bg-yellow-500 px-3 py-1 rounded" onclick="startEdit3('${t.id}')">✏️</button><button class="bg-green-600 text-white px-3 py-1 rounded w-full" onclick="collect3('${t.id}')">Collect</button></div></div>`;
+      return `<div class="ticket"><div class="flex justify-between items-center"><div><b>${t.name}</b> <span class="code-badge">#${t.code}</span></div><div>${sBadge}${pBadge}</div></div><div class="timer-area"><span>In: ${t.jsDate.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span><span class="time-val" id="timer-${t.id}">0h 0m</span></div><small>📱${t.ph}🔋${t.pb}🔌${t.ch} | ₦${t.price}</small><div class="flex gap-2 mt-2"><button class="bg-black text-white px-3 py-1 rounded" onclick="openPrintModal('${t.id}')">🖨️</button><button class="bg-yellow-500 px-3 py-1 rounded" onclick="startEdit3('${t.id}')">✏️</button><button class="bg-green-600 text-white px-3 py-1 rounded w-full" onclick="collect3('${t.id}')">Collect</button></div></div>`;
     }
     
     // NEW: Delete Function for Charging Tickets
@@ -1134,6 +1260,7 @@
         
         // Add status to receipt
         const payTxt = t.payStatus === 'later' ? '(PAY LATER)' : '(PAID)';
+        const socketTxt = t.socket ? `<br><b>SOCKET: #${t.socket}</b>` : '';
 
         let stickers = ""; for(let i=0; i<totalItems; i++) stickers += `<div class="sticker">#${code}</div>`;
         
@@ -1146,6 +1273,7 @@
                 <div style="margin: 5px 0; border-bottom:1px dashed #ccc; padding-bottom:5px;">
                    ${itemListHtml}
                 </div>
+                ${socketTxt}<br>
                 <b>TOTAL: ₦${t.price}</b><br>
                 <span style="font-size:12px; font-weight:bold">${payTxt}</span>
             </div>
@@ -1160,9 +1288,9 @@
     
     window.collect3 = async (id) => { if(confirm("Mark Collected?")) await updateDoc(doc(db3, "tickets", id), { collected: true, collDate: new Date().toLocaleDateString() }); };
     window.revert3 = async (id) => { await updateDoc(doc(db3, "tickets", id), { collected: false }); };
-    function resetForm3() { $('custName').value = ""; $('phCount').value = 1; $('pbCount').value = 0; $('chCount').value = 0; $('price3').value = 200; }
+    function resetForm3() { $('custName').value = ""; $('phCount').value = 1; $('pbCount').value = 0; $('chCount').value = 0; $('price3').value = 200; $('socketNum').value = ""; }
     const upSt = () => { $('status').className = navigator.onLine ? "status-bar on" : "status-bar off"; $('status').innerText = navigator.onLine ? "CONNECTED" : "OFFLINE"; };
     window.addEventListener('online', upSt); window.addEventListener('offline', upSt); upSt();
   </script>
 </body>
-                                                                                </html>
+  </html>
