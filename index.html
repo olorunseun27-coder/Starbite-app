@@ -66,6 +66,11 @@
     .sticker-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; }
     .sticker { background: #000; color: #fff; padding: 4px 8px; font-weight: bold; font-size: 18px; }
     
+    /* PARTIAL MODAL STYLES */
+    .qty-ctrl { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; background: #f3f4f6; padding: 5px; border-radius: 8px; }
+    .qty-btn { width: 30px; height: 30px; background: white; border: 1px solid #ccc; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; }
+    .qty-display { font-weight: bold; font-size: 18px; width: 40px; text-align: center; }
+    
     /* Report Styles */
     .rep-btn { padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; cursor: pointer; border: 1px solid #ddd; }
     .rep-btn.active { background: #007bff; color: white; border-color: #007bff; }
@@ -410,6 +415,51 @@
             <button class="bg-black text-white p-2 rounded w-full mb-2" onclick="window.print()">🖨️ PRINT NOW</button>
             <button style="background:#666;" class="text-white p-2 rounded w-full" onclick="document.getElementById('modalPrint').style.display='none'">Close</button>
           </div>
+        </div>
+
+        <div id="partialModal" class="modal">
+            <div class="modal-content" style="max-width:320px;">
+               <div class="flex justify-between items-center mb-4">
+                  <h3 class="font-bold text-lg text-blue-900">📦 Release Items</h3>
+                  <button onclick="document.getElementById('partialModal').style.display='none'" class="text-gray-500 font-bold">X</button>
+               </div>
+               
+               <input type="hidden" id="partId">
+               <div class="text-sm text-gray-500 mb-2 text-center">Select items customer is taking:</div>
+
+               <div class="qty-ctrl">
+                   <label class="text-sm font-bold">Phones:</label>
+                   <div class="flex items-center gap-2">
+                       <div class="qty-btn" onclick="adjPart('ph', -1)">-</div>
+                       <div class="qty-display" id="disp_ph">0</div>
+                       <div class="qty-btn" onclick="adjPart('ph', 1)">+</div>
+                   </div>
+               </div>
+               
+               <div class="qty-ctrl">
+                   <label class="text-sm font-bold">Powerbanks:</label>
+                   <div class="flex items-center gap-2">
+                       <div class="qty-btn" onclick="adjPart('pb', -1)">-</div>
+                       <div class="qty-display" id="disp_pb">0</div>
+                       <div class="qty-btn" onclick="adjPart('pb', 1)">+</div>
+                   </div>
+               </div>
+               
+               <div class="qty-ctrl">
+                   <label class="text-sm font-bold">Chargers:</label>
+                   <div class="flex items-center gap-2">
+                       <div class="qty-btn" onclick="adjPart('ch', -1)">-</div>
+                       <div class="qty-display" id="disp_ch">0</div>
+                       <div class="qty-btn" onclick="adjPart('ch', 1)">+</div>
+                   </div>
+               </div>
+
+               <div class="bg-yellow-50 p-2 rounded text-xs text-center mb-3">
+                   Remaining: <span id="partRemMsg" class="font-bold">...</span>
+               </div>
+
+               <button onclick="confirmPartial()" id="btnConfirmPart" class="bg-blue-600 text-white w-full py-2 rounded font-bold">Confirm Release</button>
+            </div>
         </div>
 
         <div id="modalReport" class="modal">
@@ -1049,6 +1099,9 @@
     const col3 = collection(db3, "tickets");
 
     let tData3 = [], editId3 = null, chartInstance = null;
+    
+    // Partial Checkout State
+    let partialState = { id: null, ph: 0, pb: 0, ch: 0, orig: {} };
 
     onSnapshot(query(col3, orderBy("ts", "desc")), (snap) => {
       tData3 = snap.docs.map(d => ({ ...d.data(), id: d.id, jsDate: d.data().ts ? d.data().ts.toDate() : new Date() }));
@@ -1061,8 +1114,8 @@
         // Collect all used socket numbers
         const usedSockets = new Set();
         tData3.filter(t => !t.collected && t.status === 'charging' && t.sockets).forEach(t => {
-            // t.sockets stores a string like "1, 2"
-            const s = t.sockets.toString().split(',').map(n => Number(n.trim()));
+            // t.sockets stores a string like "1, 2" or number 5
+            const s = String(t.sockets).split(',').map(n => Number(n.trim()));
             s.forEach(num => usedSockets.add(num));
         });
 
@@ -1252,7 +1305,7 @@
       updateTimers();
     }
     
-    // UPDATED HTML to include DELETE button & SOCKET info & MOVE TO SHELF logic
+    // UPDATED HTML to include PARTIAL button
     function ticketHtml(t, isH) {
       // Determine badge based on payment status
       const pBadge = t.payStatus === 'later' 
@@ -1275,7 +1328,11 @@
       } else {
           // It's charging
            locDisplay = `<div class="bg-blue-50 text-blue-800 p-1 rounded text-xs font-bold text-center mt-1">⚡ SOCKETS: ${t.sockets}</div>`;
-           actionBtn = `<button class="bg-green-600 text-white px-3 py-1 rounded w-full" onclick="markFull('${t.id}')">🔋 Done</button>`;
+           // NEW: Added Partial Button
+           actionBtn = `<div class="flex gap-1">
+               <button class="bg-purple-600 text-white px-2 py-1 rounded w-1/3" onclick="openPartial('${t.id}')">½ Part</button>
+               <button class="bg-green-600 text-white px-3 py-1 rounded w-2/3" onclick="markFull('${t.id}')">🔋 Done</button>
+           </div>`;
       }
 
       return `<div class="ticket ${t.status==='shelf'?'shelf-mode':''}"><div class="flex justify-between items-center"><div><b>${t.name}</b> <span class="code-badge">#${t.code}</span></div><div>${sBadge}${pBadge}</div></div>${locDisplay}<div class="timer-area"><span>In: ${t.jsDate.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span><span class="time-val" id="timer-${t.id}">0h 0m</span></div><small>📱${t.ph}🔋${t.pb}🔌${t.ch} | ₦${t.price}</small><div class="flex gap-2 mt-2"><button class="bg-black text-white px-3 py-1 rounded" onclick="openPrintModal('${t.id}')">🖨️</button><button class="bg-yellow-500 px-3 py-1 rounded" onclick="startEdit3('${t.id}')">✏️</button>${actionBtn}</div></div>`;
@@ -1285,6 +1342,116 @@
     window.markFull = async (id) => {
         await updateDoc(doc(db3, "tickets", id), { status: 'shelf' });
     }
+    
+    // NEW: Open Partial Modal
+    window.openPartial = (id) => {
+        const t = tData3.find(x => x.id === id);
+        if(!t) return;
+        
+        partialState = { id, ph: 0, pb: 0, ch: 0, orig: { ...t } };
+        
+        // Reset UI
+        $('disp_ph').innerText = "0";
+        $('disp_pb').innerText = "0";
+        $('disp_ch').innerText = "0";
+        $('partRemMsg').innerText = `Keep: ${t.ph} Ph, ${t.pb} Pb, ${t.ch} Ch`;
+        $('btnConfirmPart').innerText = "Release Items";
+        
+        $('partialModal').style.display = 'flex';
+    };
+    
+    // Adjust Partial Counts
+    window.adjPart = (type, delta) => {
+        const t = partialState.orig;
+        
+        // Limit 0 to Max
+        let newVal = partialState[type] + delta;
+        if(newVal < 0) newVal = 0;
+        if(newVal > t[type]) newVal = t[type]; // Cannot take more than exist
+        
+        partialState[type] = newVal;
+        $(`disp_${type}`).innerText = newVal;
+        
+        // Update Summary
+        const rPh = t.ph - partialState.ph;
+        const rPb = t.pb - partialState.pb;
+        const rCh = t.ch - partialState.ch;
+        
+        if(rPh === 0 && rPb === 0 && rCh === 0) {
+            $('partRemMsg').innerText = "ALL ITEMS COLLECTED";
+            $('btnConfirmPart').innerText = "Close Ticket";
+            $('btnConfirmPart').classList.remove('bg-blue-600');
+            $('btnConfirmPart').classList.add('bg-red-600');
+        } else {
+            $('partRemMsg').innerText = `Keep: ${rPh} Ph, ${rPb} Pb, ${rCh} Ch`;
+            $('btnConfirmPart').innerText = "Confirm Release";
+            $('btnConfirmPart').classList.add('bg-blue-600');
+            $('btnConfirmPart').classList.remove('bg-red-600');
+        }
+    };
+    
+    // Confirm Partial
+    window.confirmPartial = async () => {
+        try {
+            const btn = $('btnConfirmPart');
+            btn.innerText = "Processing...";
+            btn.disabled = true;
+
+            const id = partialState.id;
+            const t = partialState.orig;
+            const remPh = partialState.ph;
+            const remPb = partialState.pb;
+            const remCh = partialState.ch;
+            
+            if(remPh === 0 && remPb === 0 && remCh === 0) {
+                $('partialModal').style.display = 'none';
+                btn.disabled = false;
+                return; 
+            }
+
+            // Logic to free sockets
+            let newSockets = t.sockets;
+            const totalSocketsFreed = remPh + remPb; // Only Ph and Pb take sockets
+            
+            // FIX: Force t.sockets to string to prevent crash
+            let currentSockets = "";
+            if (t.sockets) currentSockets = String(t.sockets); 
+            
+            if(totalSocketsFreed > 0 && currentSockets) {
+                const sArr = currentSockets.split(',').map(s => s.trim());
+                // Remove from end
+                sArr.splice(-totalSocketsFreed);
+                newSockets = sArr.join(', ');
+            }
+            
+            const newPh = t.ph - remPh;
+            const newPb = t.pb - remPb;
+            const newCh = t.ch - remCh;
+            
+            // If everything collected, close ticket
+            if(newPh === 0 && newPb === 0 && newCh === 0) {
+                await updateDoc(doc(db3, "tickets", id), { 
+                    ph: 0, pb: 0, ch: 0, 
+                    collected: true, 
+                    collDate: new Date().toLocaleDateString() 
+                });
+                alert("All items collected. Ticket Closed.");
+            } else {
+                // Partial Update
+                await updateDoc(doc(db3, "tickets", id), { 
+                    ph: newPh, pb: newPb, ch: newCh, 
+                    sockets: newSockets 
+                });
+                alert(`Updated! Keeping: ${newPh} Phones, ${newPb} Powerbanks.`);
+            }
+            $('partialModal').style.display = 'none';
+            btn.disabled = false;
+        } catch(e) {
+            console.error(e);
+            alert("Error updating ticket. Check console.");
+            $('btnConfirmPart').disabled = false;
+        }
+    };
     
     // NEW: Delete Function for Charging Tickets
     window.delTicket3 = async (id) => {
@@ -1349,4 +1516,4 @@
     window.addEventListener('online', upSt); window.addEventListener('offline', upSt); upSt();
   </script>
 </body>
-                                                          </html>
+          </html>
