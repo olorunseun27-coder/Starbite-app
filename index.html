@@ -48,6 +48,7 @@
     .device-box { flex: 1; text-align: center; background: #f8f9fa; padding: 5px; border-radius: 8px; border: 1px solid #eee; }
     .device-box label { font-size: 11px; display: block; color: #666; }
     .ticket { border-left: 6px solid var(--primary); padding: 12px; margin-bottom: 12px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); position: relative; }
+    .ticket.shelf-mode { border-left-color: #10b981; background: #ecfdf5; }
     .timer-area { background: #e3f2fd; padding: 10px; border-radius: 6px; margin: 10px 0; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
     .time-val { font-family: 'Courier New', monospace; font-size: 18px; font-weight: bold; color: #333; }
     .time-val.danger { color: #d32f2f; font-weight: 900; font-size: 20px; animation: pulse 2s infinite; }
@@ -367,14 +368,11 @@
           </div>
 
           <div class="flex gap-2 my-2">
-             <div class="w-1/2">
+             <div class="w-full">
                 <label class="text-xs font-bold text-gray-500">Price (₦)</label>
                 <input type="number" id="price3" value="200" class="w-full border p-2 rounded">
              </div>
-             <div class="w-1/2">
-                <label class="text-xs font-bold text-gray-500">Socket #</label>
-                <input type="number" id="socketNum" placeholder="#" class="w-full border p-2 rounded">
-             </div>
+             <input type="hidden" id="socketNum">
           </div>
           
           <div class="flex gap-4 mb-3 border p-2 rounded bg-gray-50">
@@ -393,7 +391,7 @@
           <button id="cancelEditBtn3" style="display:none; background:#666;" onclick="cancelEdit3()" class="w-full text-white p-3 rounded mt-2">Cancel Edit</button>
         </div>
       
-        <h3>Charging Now (<span id="countActive">0</span>)</h3>
+        <h3>Active Devices (<span id="countActive">0</span>)</h3>
         <div id="listActive">Loading...</div>
       
         <details class="card mt-4">
@@ -1058,20 +1056,51 @@
       renderChart();
     });
 
+    // NEW: Logic to find next available sockets (Multiple for one ticket)
+    function getNextSockets(neededCount) {
+        // Collect all used socket numbers
+        const usedSockets = new Set();
+        tData3.filter(t => !t.collected && t.status === 'charging' && t.sockets).forEach(t => {
+            // t.sockets stores a string like "1, 2"
+            const s = t.sockets.toString().split(',').map(n => Number(n.trim()));
+            s.forEach(num => usedSockets.add(num));
+        });
+
+        const assigned = [];
+        let current = 1;
+        while(assigned.length < neededCount) {
+            if(!usedSockets.has(current)) {
+                assigned.push(current);
+            }
+            current++;
+        }
+        return assigned.join(', ');
+    }
+
     window.saveTicket = async () => {
       const name = $('custName').value.trim(); if(!name) return alert("Name required");
-      // GET PAYMENT STATUS & SOCKET
       const payStatus = document.querySelector('input[name="payStatus"]:checked').value;
-      const socket = $('socketNum').value;
+      
+      const ph = +$('phCount').value;
+      const pb = +$('pbCount').value;
+      const ch = +$('chCount').value;
+      const slotsNeeded = ph + pb; // ONLY PHONES AND POWERBANKS NEED SOCKETS
 
-      const data = { name, code: Math.floor(1000 + Math.random() * 9000), ph: +$('phCount').value, pb: +$('pbCount').value, ch: +$('chCount').value, price: +$('price3').value, collected: false, payStatus, socket };
+      let sockets = $('socketNum').value; // In case editing
+      
+      // If new ticket, calculate next sockets based on item count
+      if(!editId3) sockets = getNextSockets(slotsNeeded);
+
+      const data = { name, code: Math.floor(1000 + Math.random() * 9000), ph, pb, ch, price: +$('price3').value, collected: false, payStatus, sockets, status: 'charging' };
+      
       if(editId3) { await updateDoc(doc(db3, "tickets", editId3), data); cancelEdit3(); }
       else { const dRef = await addDoc(col3, { ...data, charged: false, ts: serverTimestamp() }); resetForm3(); openPrintModal(dRef.id, data, data.code); }
     };
+
     window.startEdit3 = (id) => {
       const t = tData3.find(x => x.id === id); editId3 = id;
       $('custName').value = t.name; $('phCount').value = t.ph; $('pbCount').value = t.pb; $('chCount').value = t.ch; $('price3').value = t.price;
-      $('socketNum').value = t.socket || '';
+      $('socketNum').value = t.sockets || '';
       
       // SET RADIO BUTTON
       const radios = document.getElementsByName('payStatus');
@@ -1086,27 +1115,35 @@
         document.getElementsByName('payStatus')[0].checked = true;
     };
     
-    // ---- NEW FUNCTION: RUN QUICK COLLECT ----
+    // ---- UPDATED: RUN QUICK COLLECT (SMART SEARCH) ----
     window.runQuickCollect = async () => {
       const codeVal = $('quickCode').value.trim();
       if(!codeVal) return alert("Please enter a code");
 
-      // Find active ticket with this code
+      // Find active ticket (Either charging OR on shelf)
       const target = tData3.find(t => t.code == codeVal && !t.collected);
 
       if(!target) {
         alert("❌ Ticket not found active!");
         return;
       }
+      
+      // Determine Message based on status
+      let locMsg = "";
+      if(target.status === 'shelf') {
+          locMsg = `📦 It is FULLY CHARGED.\nGet from SHELF.`;
+      } else {
+          locMsg = `⚡ It is still CHARGING.\nGet from SOCKETS: ${target.sockets}`;
+      }
 
-      // Automatically mark as collected
-      await updateDoc(doc(db3, "tickets", target.id), {
-         collected: true,
-         collDate: new Date().toLocaleDateString()
-      });
-
-      // Show Register details popup (Alert)
-      alert(`✅ SUCCESS!\n\nTicket #${target.code}\nCustomer: ${target.name}\nPrice: ₦${target.price}\n\nMarked as COLLECTED.`);
+      if(confirm(`FOUND: ${target.name}\n${locMsg}\n\nMark as COLLECTED now?`)) {
+          // Automatically mark as collected
+          await updateDoc(doc(db3, "tickets", target.id), {
+             collected: true,
+             collDate: new Date().toLocaleDateString()
+          });
+          alert("✅ Marked Collected!");
+      }
       $('quickCode').value = ''; // Reset input
     };
     
@@ -1215,19 +1252,38 @@
       updateTimers();
     }
     
-    // UPDATED HTML to include DELETE button & SOCKET info
+    // UPDATED HTML to include DELETE button & SOCKET info & MOVE TO SHELF logic
     function ticketHtml(t, isH) {
       // Determine badge based on payment status
       const pBadge = t.payStatus === 'later' 
         ? `<span class="bg-red-500 text-white text-xs px-2 py-1 rounded ml-2">LATER</span>` 
         : `<span class="bg-green-500 text-white text-xs px-2 py-1 rounded ml-2">PAID</span>`;
       
-      const sBadge = t.socket ? `<span class="bg-gray-800 text-white text-xs px-2 py-1 rounded ml-1">🔌${t.socket}</span>` : '';
+      const sBadge = t.sockets ? `<span class="bg-gray-800 text-white text-xs px-2 py-1 rounded ml-1">🔌${t.sockets}</span>` : '';
 
       // ADDED DELETE BUTTON (Trash Can) HERE
       if(isH) return `<div class="ticket"><b>${t.name}</b> <span class="code-badge">#${t.code}</span><br><small>Out: ${t.collDate}</small> <div style="float:right"><button onclick="revert3('${t.id}')">↩️</button> <button onclick="delTicket3('${t.id}')">🗑️</button></div></div>`;
       
-      return `<div class="ticket"><div class="flex justify-between items-center"><div><b>${t.name}</b> <span class="code-badge">#${t.code}</span></div><div>${sBadge}${pBadge}</div></div><div class="timer-area"><span>In: ${t.jsDate.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span><span class="time-val" id="timer-${t.id}">0h 0m</span></div><small>📱${t.ph}🔋${t.pb}🔌${t.ch} | ₦${t.price}</small><div class="flex gap-2 mt-2"><button class="bg-black text-white px-3 py-1 rounded" onclick="openPrintModal('${t.id}')">🖨️</button><button class="bg-yellow-500 px-3 py-1 rounded" onclick="startEdit3('${t.id}')">✏️</button><button class="bg-green-600 text-white px-3 py-1 rounded w-full" onclick="collect3('${t.id}')">Collect</button></div></div>`;
+      // ACTIVE TICKET LOGIC (Shelf vs Socket)
+      let actionBtn = "";
+      let locDisplay = "";
+      
+      if(t.status === 'shelf') {
+          // It's on shelf
+          locDisplay = `<div class="bg-green-100 text-green-800 p-1 rounded text-xs font-bold text-center mt-1">📦 ON SHELF</div>`;
+          actionBtn = `<button class="bg-blue-700 text-white px-3 py-1 rounded w-full" onclick="collect3('${t.id}')">Give to Owner</button>`;
+      } else {
+          // It's charging
+           locDisplay = `<div class="bg-blue-50 text-blue-800 p-1 rounded text-xs font-bold text-center mt-1">⚡ SOCKETS: ${t.sockets}</div>`;
+           actionBtn = `<button class="bg-green-600 text-white px-3 py-1 rounded w-full" onclick="markFull('${t.id}')">🔋 Done</button>`;
+      }
+
+      return `<div class="ticket ${t.status==='shelf'?'shelf-mode':''}"><div class="flex justify-between items-center"><div><b>${t.name}</b> <span class="code-badge">#${t.code}</span></div><div>${sBadge}${pBadge}</div></div>${locDisplay}<div class="timer-area"><span>In: ${t.jsDate.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span><span class="time-val" id="timer-${t.id}">0h 0m</span></div><small>📱${t.ph}🔋${t.pb}🔌${t.ch} | ₦${t.price}</small><div class="flex gap-2 mt-2"><button class="bg-black text-white px-3 py-1 rounded" onclick="openPrintModal('${t.id}')">🖨️</button><button class="bg-yellow-500 px-3 py-1 rounded" onclick="startEdit3('${t.id}')">✏️</button>${actionBtn}</div></div>`;
+    }
+    
+    // NEW: Mark as Full (Move to Shelf) - NO PROMPT
+    window.markFull = async (id) => {
+        await updateDoc(doc(db3, "tickets", id), { status: 'shelf' });
     }
     
     // NEW: Delete Function for Charging Tickets
@@ -1260,7 +1316,7 @@
         
         // Add status to receipt
         const payTxt = t.payStatus === 'later' ? '(PAY LATER)' : '(PAID)';
-        const socketTxt = t.socket ? `<br><b>SOCKET: #${t.socket}</b>` : '';
+        const socketTxt = t.sockets ? `<br><b>SOCKETS: ${t.sockets}</b>` : '';
 
         let stickers = ""; for(let i=0; i<totalItems; i++) stickers += `<div class="sticker">#${code}</div>`;
         
@@ -1293,4 +1349,4 @@
     window.addEventListener('online', upSt); window.addEventListener('offline', upSt); upSt();
   </script>
 </body>
-  </html>
+                                                          </html>
