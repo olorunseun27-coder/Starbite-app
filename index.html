@@ -9,6 +9,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
   <style>
     /* --- SECURITY LOCK SCREEN --- */
@@ -58,8 +61,13 @@
     .on { background: var(--success); } .off { background: var(--danger); }
     .modal { display: none; position: fixed; z-index: 200; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; }
     .modal-content { background: #fff; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; max-height: 90vh; overflow-y: auto; }
+    
     #receiptPreview { font-family: 'Courier New', monospace; text-align: center; border: 1px dashed #333; padding: 10px; margin-bottom: 15px; background: #fff; color: black; }
     .r-code-box { border: 3px solid #000; padding: 5px; margin: 10px auto; display: inline-block; }
+    /* QR STYLE */
+    #qrImageGen { display:flex; justify-content:center; margin: 10px 0; }
+    #qrImageGen img { width: 100px; height: 100px; }
+
     .r-code-text { font-size: 28px; font-weight: 900; letter-spacing: 2px; }
     .r-cut-line { border-top: 2px dashed #000; margin: 20px 0 10px 0; position: relative; }
     .r-cut-line::after { content: '✂️ DEVICE LABELS ✂️'; position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: #fff; padding: 0 5px; font-size: 10px; }
@@ -356,9 +364,13 @@
       
         <div class="card" style="background: #e0f2fe; border: 2px solid #0284c7;">
           <h3 class="text-blue-900 font-bold mb-2">🚀 Quick Collect by Code</h3>
+          
+          <div id="qr-reader" style="width:100%; margin-bottom:10px; display:none"></div>
+          
           <div class="flex gap-2">
-            <input type="number" id="quickCode" placeholder="Enter Ticket Code (e.g. 1234)" class="w-full border p-2 rounded font-bold text-lg" onkeydown="if(event.key==='Enter') runQuickCollect()">
-            <button onclick="runQuickCollect()" class="bg-blue-700 text-white px-6 py-2 rounded font-bold hover:bg-blue-800">COLLECT</button>
+            <input type="number" id="quickCode" placeholder="Enter Code (e.g. 1234)" class="w-full border p-2 rounded font-bold text-lg" onkeydown="if(event.key==='Enter') runQuickCollect()">
+            <button onclick="runQuickCollect()" class="bg-blue-700 text-white px-3 py-2 rounded font-bold hover:bg-blue-800">COLLECT</button>
+            <button onclick="toggleScanner()" id="btnScanQr" class="bg-gray-800 text-white px-3 py-2 rounded font-bold hover:bg-black">📷 Scan QR</button>
           </div>
         </div>
 
@@ -1169,11 +1181,14 @@
     };
     
     // ---- UPDATED: RUN QUICK COLLECT (SMART SEARCH) ----
-    window.runQuickCollect = async () => {
-      const codeVal = $('quickCode').value.trim();
+    window.runQuickCollect = async (scannedCode) => {
+      // If scannedCode is passed, use it. Otherwise use input box.
+      const codeVal = scannedCode ? scannedCode : $('quickCode').value.trim();
+      
       if(!codeVal) return alert("Please enter a code");
 
       // Find active ticket (Either charging OR on shelf)
+      // Note: We scan for ANY ticket matching code that is NOT collected yet
       const target = tData3.find(t => t.code == codeVal && !t.collected);
 
       if(!target) {
@@ -1199,6 +1214,54 @@
       }
       $('quickCode').value = ''; // Reset input
     };
+    
+    // ---- NEW: QR SCANNING LOGIC ----
+    let html5QrcodeScanner = null;
+    let isScanning = false;
+
+    window.toggleScanner = () => {
+        const reader = document.getElementById('qr-reader');
+        const btn = document.getElementById('btnScanQr');
+
+        if(isScanning) {
+            // Stop scanning
+            if(html5QrcodeScanner) {
+                html5QrcodeScanner.clear().then(() => {
+                    reader.style.display = "none";
+                    btn.innerText = "📷 Scan QR";
+                    btn.classList.remove('bg-red-600');
+                    btn.classList.add('bg-gray-800');
+                    isScanning = false;
+                }).catch(err => console.error(err));
+            }
+        } else {
+            // Start scanning
+            reader.style.display = "block";
+            btn.innerText = "❌ Stop Scan";
+            btn.classList.remove('bg-gray-800');
+            btn.classList.add('bg-red-600');
+            isScanning = true;
+
+            html5QrcodeScanner = new Html5QrcodeScanner(
+                "qr-reader", { fps: 10, qrbox: 250 });
+            
+            html5QrcodeScanner.render((decodedText) => {
+                // Success Callback
+                console.log(`Scan result: ${decodedText}`);
+                
+                // Stop scanning immediately after success to prevent double triggers
+                html5QrcodeScanner.clear();
+                reader.style.display = "none";
+                btn.innerText = "📷 Scan QR";
+                btn.classList.remove('bg-red-600');
+                btn.classList.add('bg-gray-800');
+                isScanning = false;
+
+                // Run logic with the scanned text
+                runQuickCollect(decodedText);
+            });
+        }
+    }
     
     // ---- NEW: REPORTS FUNCTIONALITY ----
     window.openReportModal = () => {
@@ -1490,8 +1553,11 @@
         $('receiptPreview').innerHTML = `
             <div class="font-bold">STARBITE CHARGING</div>
             <div>${new Date().toLocaleString()}</div>
-            <div class="r-code-box"><div class="r-code-text">#${code}</div></div>
-            <div class="text-left">
+            
+            <div id="qrImageGen"></div>
+            <div class="font-bold text-lg">#${code}</div>
+            
+            <div class="text-left mt-2">
                 <b>Customer:</b> ${t.name.toUpperCase()}<br>
                 <div style="margin: 5px 0; border-bottom:1px dashed #ccc; padding-bottom:5px;">
                    ${itemListHtml}
@@ -1501,11 +1567,20 @@
                 <span style="font-size:12px; font-weight:bold">${payTxt}</span>
             </div>
             <div style="font-size:10px; font-weight:bold; margin-top:10px; text-align:center;">
-               pls Check device condition before leaving.
+                Check device before leaving.
             </div>
             <div class="r-cut-line"></div>
             <div class="sticker-container">${stickers}</div>`;
             
+        // GENERATE QR
+        setTimeout(() => {
+           new QRCode(document.getElementById("qrImageGen"), {
+               text: String(code),
+               width: 100,
+               height: 100
+           });
+        }, 100);
+
         $('modalPrint').style.display = 'flex';
     };
     
@@ -1516,4 +1591,4 @@
     window.addEventListener('online', upSt); window.addEventListener('offline', upSt); upSt();
   </script>
 </body>
-          </html>
+  </html>
