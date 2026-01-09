@@ -84,7 +84,7 @@
     <div class="app-nav" id="mainNav">
         <button class="nav-btn active" onclick="switchTab(1)">☁️ Shop</button>
         <button class="nav-btn" onclick="switchTab(2)">📝 Recorder</button>
-        <button class="nav-btn" onclick="switchTab(3)">⚡️ Pro Dash</button>
+        <button class="nav-btn" onclick="switchTab(3)">⚡️charging point</button>
         <button class="nav-btn" onclick="switchTab(4)" style="color:#ffc107;">👑 Master</button>
         <button class="nav-btn" onclick="toggleDark()" style="max-width:40px;">🌗</button>
     </div>
@@ -160,7 +160,6 @@
 
         function loadApps() {
             const wrap = (code) => code.replace('// [[INJECT_CONFIG]]', MAIN_CONFIG);
-            // Ensure elements exist before setting srcdoc
             const c1 = document.getElementById('code1');
             const c2 = document.getElementById('code2');
             const c3 = document.getElementById('code3');
@@ -248,7 +247,7 @@
 <body>
 
     <div class="header">
-        <span class="live-dot"></span> ☁️ Cloud Shop Manager
+        <span class="live-dot"></span> Shop Manager
     </div>
 
     <div class="container">
@@ -272,7 +271,7 @@
                     <span class="dash-label">View Trash 🗑️</span>
                 </div>
             </div>
-            <div style="text-align:center; margin-top:20px; color:#777; font-size:12px;">Data synced with Google Cloud</div>
+            <div style="text-align:center; margin-top:20px; color:#777; font-size:12px;">Starbite- good service is our joy!</div>
         </div>
 
         <div id="sec-sell" class="section">
@@ -902,7 +901,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Starbite Cloud Recorder</title>
+  <title>Starbite Production Recorder</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
@@ -916,7 +915,7 @@
 <body class="bg-gray-50 text-gray-800 min-h-screen p-4">
   <div class="max-w-5xl mx-auto bg-white shadow-lg rounded-2xl p-6">
     <div class="flex justify-between items-center mb-4">
-        <h1 class="text-2xl font-bold">STARBITE CLOUD RECORDER</h1>
+        <h1 class="text-2xl font-bold">STARBITE PRODUCTION RECORDER</h1>
         <button onclick="openProdSet()" class="bg-gray-700 text-white px-3 py-1 rounded text-sm">⚙️ Products</button>
     </div>
     
@@ -1320,7 +1319,7 @@
 </head>
 <body>
 
-  <h2>⚡️ STARBITE Cloud Pro</h2>
+  <h2>⚡️ STARBITE CHARGING BUS.</h2>
 
   <div class="dash-row">
     <div class="dash-card d-green"><h4>Cash Today</h4><div class="dash-val" id="valCash">₦0</div></div>
@@ -1506,9 +1505,9 @@
         if (!t.collected && (!t.sockets || t.sockets.length === 0)) {
             sockStr = `<span style="color:#666; font-weight:bold; background:#eee; padding:2px 5px; border-radius:4px;">[SHELF 📦]</span>`;
         } else if(t.sockets && Array.isArray(t.sockets) && t.sockets.length > 0) { 
-            sockStr = `[Slots: ${t.sockets.join(', ')}]`; 
+            sockStr = `[Sockets: ${t.sockets.join(', ')}]`; 
         } else if (t.socket) { 
-            sockStr = `[Slot: ${t.socket}]`; 
+            sockStr = `[Socket: ${t.socket}]`; 
         }
 
         const badge = t.payStatus === 'Now' ? '<span class="pill-paid">PAID</span>' : '<span class="pill-owe">OWE</span>';
@@ -1550,9 +1549,10 @@
         
         const secCode = t.secCode || genSecCode(id, t.price);
         const totalItems = (t.ph || 0) + (t.pb || 0) + (t.ch || 0);
-        const stickerCount = (t.ph || 0) + (t.pb || 0); 
+        // CHANGED HERE: Loop now includes chargers (t.ch) to generate stickers for them too
+        const stickerCount = (t.ph || 0) + (t.pb || 0) + (t.ch || 0); 
         let stickersHTML = ""; for(let i=0; i<stickerCount; i++) stickersHTML += `<div class="sticker">#${code}</div>`; 
-        const payTxt = t.payStatus === 'Now' ? "PAID" : "DUE";
+        const payTxt = t.payStatus === 'Now' ? "PAID" : "pay latter";
         const socketDisplay = (t.sockets && Array.isArray(t.sockets)) ? t.sockets.join(', ') : (t.socket || "N/A");
 
         document.getElementById('receiptPreview').innerHTML = `
@@ -1571,7 +1571,7 @@
     window.sendWAText = () => {
         if(!currentReceiptData) return;
         const t = currentReceiptData;
-        const payTxt = t.payStatus === 'Now' ? "PAID" : "DUE";
+        const payTxt = t.payStatus === 'Now' ? "PAID" : "pay later";
         
         let phone = t.phone ? t.phone.replace(/\D/g, '') : '';
         if(phone.startsWith('0')) phone = '234' + phone.substring(1);
@@ -1751,4 +1751,4 @@
 </textarea>
 
 </body>
-    </html>
+</html> 
