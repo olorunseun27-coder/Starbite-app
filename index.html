@@ -269,7 +269,7 @@
             <div class="card">
                 <div style="display:flex; gap:5px;">
                     <input type="text" id="search" placeholder="🔍 Search product..." onkeyup="runIf(window.renderProducts)">
-                    <button style="width:60px; background:#666;" onclick="window.startScan()">📷</button>
+                    <button style="width:60px; background:#666;" onclick="window.startScan('search')">📷</button>
                 </div>
                 <div id="prodList" style="max-height: 180px; overflow-y: auto;"></div>
                 <div style="display:flex; gap:10px; margin-top:10px;">
@@ -358,10 +358,15 @@
     </div>
     <div id="mod-prod" class="modal">
         <div class="modal-content">
-            <h3>📦 New Product</h3>
+            <h3>📦 Product Details</h3>
+            <input type="hidden" id="p-id">
             <input type="text" id="p-name" placeholder="Name">
             <input type="number" id="p-price" placeholder="Price">
             <input type="number" id="p-stock" placeholder="Stock Qty">
+            <div style="display:flex; gap:5px; margin-bottom:10px;">
+                <input type="text" id="p-barcode" placeholder="Barcode (Optional)" style="margin:0;">
+                <button style="width:60px; background:#666; margin:0;" onclick="window.startScan('edit')">📷</button>
+            </div>
             <button class="btn-green" onclick="runIf(window.saveProduct)">Save to Cloud</button>
             <button class="btn-red" onclick="closeModals()">Cancel</button>
         </div>
@@ -441,7 +446,15 @@
     
     function closeModals() { document.querySelectorAll('.modal').forEach(m=>m.style.display='none'); }
     function openCreditModal() { document.getElementById('mod-credit').style.display='flex'; }
-    function openProdModal() { document.getElementById('mod-prod').style.display='flex'; }
+    // MODIFIED: Open Product Modal with cleared fields
+    function openProdModal() { 
+        document.getElementById('p-id').value = ''; 
+        document.getElementById('p-name').value = ''; 
+        document.getElementById('p-price').value = ''; 
+        document.getElementById('p-stock').value = ''; 
+        document.getElementById('p-barcode').value = ''; 
+        document.getElementById('mod-prod').style.display='flex'; 
+    }
     function openManualDebt() { 
         document.getElementById('m-id').value = ''; 
         document.getElementById('m-name').value = ''; 
@@ -454,13 +467,15 @@
 
     // SCANNER LOGIC
     let html5QrcodeScanner;
-    window.startScan = function() {
+    let scanTarget = 'search'; // 'search' or 'edit'
+
+    window.startScan = function(target) {
         if(typeof Html5QrcodeScanner === 'undefined') {
             alert("Scanner library not loaded. Check internet connection.");
             return;
         }
+        scanTarget = target;
         document.getElementById('mod-scan').style.display = 'flex';
-        // Clear previous instance if any
         document.getElementById("reader").innerHTML = "";
         html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
         html5QrcodeScanner.render(onScanSuccess);
@@ -479,8 +494,12 @@
     }
 
     function onScanSuccess(decodedText, decodedResult) {
-        document.getElementById('search').value = decodedText;
-        window.renderProducts();
+        if(scanTarget === 'search') {
+            document.getElementById('search').value = decodedText;
+            window.renderProducts(); 
+        } else {
+            document.getElementById('p-barcode').value = decodedText;
+        }
         window.stopScan();
     }
 </script>
@@ -542,16 +561,30 @@
             document.getElementById('mod-lowstock').style.display = 'flex';
         }
 
+        // UPDATED: Render Products to check Barcode too
         window.renderProducts = () => {
             const q = document.getElementById('search').value.toLowerCase();
             const div = document.getElementById('prodList'); div.innerHTML = '';
+            
+            // Check for EXACT barcode match first to auto-select
+            const exactMatchIndex = products.findIndex(p => p.barcode === q);
+            
             products.forEach((p, i) => {
-                if(p.name.toLowerCase().includes(q)) {
+                // Search by Name OR Barcode
+                if(p.name.toLowerCase().includes(q) || (p.barcode && p.barcode === q)) {
                     let color = p.stock < 5 ? '#fff3cd' : 'white';
+                    // If scanning, highlight specifically
+                    if(p.barcode === q) color = '#d1e7dd'; 
+                    
                     div.innerHTML += `<div onclick="window.selProd(${i})" style="padding:10px; border-bottom:1px solid #eee; background:${color}; cursor:pointer;"><b>${p.name}</b> <small>(Stock: ${p.stock})</small><div style="float:right;">₦${p.price}</div></div>`;
                 }
             });
-        }
+
+            // Auto Select if exact barcode scan
+            if(exactMatchIndex !== -1 && q.length > 3) {
+                 window.selProd(exactMatchIndex);
+            }
+        };
 
         window.selProd = (i) => { document.getElementById('selIndex').value = i; document.getElementById('qty').focus(); }
 
@@ -720,32 +753,43 @@
 
         window.addStock = async (id) => { let n = prompt("Add Qty:"); if(n) { const p = products.find(x => x.id === id); await updateDoc(doc(db, "products", id), { stock: p.stock + parseInt(n) }); } }
         
+        // MODIFIED: Edit Stock -> Opens Full Edit Modal
         window.editStock = async (id) => { 
             const p = products.find(x => x.id === id);
-            let n = prompt("Enter CORRECT total stock for " + p.name + ":", p.stock); 
-            if(n !== null) { 
-                await updateDoc(doc(db, "products", id), { stock: parseInt(n) }); 
-            } 
+            document.getElementById('p-id').value = id;
+            document.getElementById('p-name').value = p.name;
+            document.getElementById('p-price').value = p.price;
+            document.getElementById('p-stock').value = p.stock;
+            document.getElementById('p-barcode').value = p.barcode || "";
+            document.getElementById('mod-prod').style.display='flex';
         }
 
         window.saveProduct = async () => { 
-            const nameRaw = document.getElementById('p-name').value;
+            const id = document.getElementById('p-id').value;
+            const name = document.getElementById('p-name').value;
             const price = parseInt(document.getElementById('p-price').value);
             const stock = parseInt(document.getElementById('p-stock').value);
+            const barcode = document.getElementById('p-barcode').value;
 
-            if(!nameRaw || !price) return alert("Name and Price required!");
+            if(!name || !price) return alert("Name and Price required!");
 
-            const exists = products.find(p => p.name.trim().toLowerCase() === nameRaw.trim().toLowerCase());
-            if(exists) {
-                alert("Error: Product '" + nameRaw + "' already exists!");
-                return;
+            if(id) {
+                // Update Existing
+                await updateDoc(doc(db, "products", id), { name, price, stock, barcode });
+            } else {
+                // Create New
+                const exists = products.find(p => p.name.trim().toLowerCase() === name.trim().toLowerCase());
+                if(exists) { alert("Error: Product already exists!"); return; }
+                await addDoc(collection(db, "products"), { name, price, stock, barcode });
             }
 
-            await addDoc(collection(db, "products"), { name: nameRaw, price, stock }); 
             window.closeModals(); 
+            // Clear
+            document.getElementById('p-id').value = '';
             document.getElementById('p-name').value = '';
             document.getElementById('p-price').value = '';
             document.getElementById('p-stock').value = '';
+            document.getElementById('p-barcode').value = '';
         }
         
         window.renderHistory = () => { 
@@ -1126,6 +1170,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>STARBITE Pro: Business Dashboard</title>
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
   <style>
     :root { --primary: #007bff; --success: #28a745; --danger: #dc3545; --warning: #ffc107; --bg: #f4f7f6; --dark: #343a40; --purple: #6f42c1; }
     body { font-family: 'Segoe UI', sans-serif; margin: 15px; background-color: var(--bg); padding-bottom: 70px; }
@@ -1262,6 +1307,7 @@
     
     onSnapshot(query(col, orderBy("ts", "desc")), (snap) => { ticketsData = snap.docs.map(d => ({ ...d.data(), id: d.id, jsDate: d.data().ts ? d.data().ts.toDate() : new Date() })); render(); });
     
+    // === ALGORITHM: FIND N AVAILABLE SOCKETS ===
     function getNextSockets(neededCount) {
         const active = ticketsData.filter(t => !t.collected);
         const used = active.flatMap(t => t.sockets || []); 
@@ -1274,6 +1320,7 @@
         return assigned;
     }
 
+    // === SECURITY CODE GENERATOR ===
     function genSecCode(id, price) {
         return `SEC-${id.substring(0,4).toUpperCase()}-${price}-${Math.floor(Math.random()*99)}`;
     }
@@ -1290,6 +1337,7 @@
         const pb = +document.getElementById('pbCount').value;
         const ch = +document.getElementById('chCount').value;
         
+        // Chargers (ch) do NOT count as Sockets
         const socketsNeeded = ph + pb; 
 
         let assignedSockets = [];
@@ -1309,6 +1357,7 @@
                 cancelEdit(); 
             } else { 
                 const docRef = await addDoc(col, { ...data, charged: false, ts: serverTimestamp() }); 
+                // Add Security Code after creation (using ID)
                 const secCode = genSecCode(docRef.id, data.price);
                 await updateDoc(doc(db, "tickets", docRef.id), { secCode });
                 
@@ -1335,6 +1384,7 @@
 
     window.cancelEdit = () => { editId = null; resetForm(); document.getElementById('formAction').innerText = "New Customer"; document.getElementById('saveBtn').innerText = "✅ START CHARGING"; document.getElementById('cancelEditBtn').style.display = "none"; };
     
+    // === NEW: Unplug/Shelf Function ===
     window.moveToShelf = async (id) => {
         if(confirm("Device full? Move to Shelf and free socket?")) {
             await updateDoc(doc(db, "tickets", id), { sockets: [] });
@@ -1614,4 +1664,4 @@
 
     </script>
 </body>
-  </html>
+    </html>
