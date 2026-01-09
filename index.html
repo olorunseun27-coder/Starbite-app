@@ -1,42 +1,1134 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>STARBITE All-in-One Cloud System</title>
-  
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Starbite Super App</title>
+    <style>
+        /* === WRAPPER STYLES === */
+        :root { --bg: #1a1a1a; --nav: #222; --text: #888; --active: #fff; }
+        body.dark-mode { --bg: #000; --nav: #111; --text: #aaa; --active: #ccc; }
+        
+        body { 
+            margin: 0; padding: 0; font-family: sans-serif; 
+            background: var(--bg); display: flex; flex-direction: column; 
+            height: 100dvh; overflow: hidden; transition: 0.3s;
+        }
+        
+        /* Navigation Bar */
+        .app-nav {
+            background: var(--nav); border-bottom: 1px solid #333;
+            display: flex; justify-content: center; padding: 0; height: 50px;
+            flex-shrink: 0; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            z-index: 10; visibility: hidden; 
+        }
+
+        .nav-btn {
+            background: transparent; border: none; color: var(--text);
+            padding: 0 10px; font-size: 13px; font-weight: bold; cursor: pointer;
+            border-bottom: 3px solid transparent; transition: 0.3s; flex: 1;
+            display: flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap;
+        }
+        .nav-btn:hover { background: #333; color: #ccc; }
+        .nav-btn.active { color: var(--active); background: #333; border-bottom: 3px solid #007bff; }
+
+        /* Iframe Containers */
+        .frame-container { flex: 1; position: relative; background: white; width: 100%; overflow: hidden; visibility: hidden; }
+        iframe { width: 100%; height: 100%; border: none; position: absolute; top: 0; left: 0; display: none; }
+        iframe.active { display: block; }
+
+        /* === LOGIN SCREEN === */
+        #login-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #111; z-index: 99999; display: flex;
+            flex-direction: column; align-items: center; justify-content: center; color: white;
+        }
+        .login-box { background: #222; padding: 30px; border-radius: 15px; text-align: center; width: 80%; max-width: 300px; }
+        .login-input { width: 100%; padding: 15px; margin: 20px 0; font-size: 24px; text-align: center; border-radius: 8px; background: #333; color: white; border: 1px solid #444; letter-spacing: 5px; box-sizing: border-box; }
+        .login-btn { width: 100%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .login-error { color: #ff4444; margin-top: 10px; display: none; }
+
+        /* === FLOATING CALCULATOR === */
+        #calc-icon {
+            position: fixed; bottom: 80px; right: 20px; 
+            background: #007bff; color: white; width: 50px; height: 50px;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 24px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: pointer; z-index: 9000;
+            display: none; /* Hidden until login */
+        }
+        #calc-modal {
+            display: none; position: fixed; bottom: 140px; right: 20px;
+            background: #333; padding: 10px; border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.5); z-index: 9001; width: 200px;
+        }
+        .c-screen { width: 100%; height: 40px; background: #eee; margin-bottom: 10px; text-align: right; padding: 5px; font-size: 20px; box-sizing: border-box; }
+        .c-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+        .c-btn { padding: 10px; background: #555; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .c-btn.op { background: #ff9800; } .c-btn.eq { background: #28a745; grid-column: span 2; } .c-btn.clr { background: #dc3545; grid-column: span 2; }
+
+    </style>
+</head>
+<body>
+
+    <div id="login-screen">
+        <div class="login-box">
+            <h2>🔒 UNIFIED ACCESS</h2>
+            <p style="color:#888; font-size:12px;">Starbite Super App</p>
+            <input type="password" id="pinInput" class="login-input" placeholder="PIN" maxlength="4">
+            <button class="login-btn" onclick="checkLogin()">UNLOCK</button>
+            <div id="loginError" class="login-error">Incorrect PIN</div>
+            <p style="font-size:10px; color:#555; margin-top:15px;">Default: 1111 (Admin) or 2222 (Staff)</p>
+        </div>
+    </div>
+
+    <div class="app-nav" id="mainNav">
+        <button class="nav-btn active" onclick="switchTab(1)">☁️ Shop</button>
+        <button class="nav-btn" onclick="switchTab(2)">📝 Recorder</button>
+        <button class="nav-btn" onclick="switchTab(3)">⚡️ Pro Dash</button>
+        <button class="nav-btn" onclick="switchTab(4)" style="color:#ffc107;">👑 Master</button>
+        <button class="nav-btn" onclick="toggleDark()" style="max-width:40px;">🌗</button>
+    </div>
+
+    <div class="frame-container" id="mainContainer">
+        <iframe id="frame1" class="active" allow="camera; microphone; geolocation"></iframe>
+        <iframe id="frame2" allow="camera; microphone"></iframe>
+        <iframe id="frame3" allow="camera; microphone"></iframe>
+        <iframe id="frame4"></iframe>
+    </div>
+
+    <div id="calc-icon" onclick="toggleCalc()">🧮</div>
+    <div id="calc-modal">
+        <input type="text" class="c-screen" id="cScreen" readonly>
+        <div class="c-grid">
+            <button class="c-btn clr" onclick="cClr()">C</button>
+            <button class="c-btn op" onclick="cIn('/')">/</button>
+            <button class="c-btn op" onclick="cIn('*')">x</button>
+            <button class="c-btn" onclick="cIn('7')">7</button>
+            <button class="c-btn" onclick="cIn('8')">8</button>
+            <button class="c-btn" onclick="cIn('9')">9</button>
+            <button class="c-btn op" onclick="cIn('-')">-</button>
+            <button class="c-btn" onclick="cIn('4')">4</button>
+            <button class="c-btn" onclick="cIn('5')">5</button>
+            <button class="c-btn" onclick="cIn('6')">6</button>
+            <button class="c-btn op" onclick="cIn('+')">+</button>
+            <button class="c-btn" onclick="cIn('1')">1</button>
+            <button class="c-btn" onclick="cIn('2')">2</button>
+            <button class="c-btn" onclick="cIn('3')">3</button>
+            <button class="c-btn eq" onclick="cCalc()">=</button>
+            <button class="c-btn" onclick="cIn('0')">0</button>
+            <button class="c-btn" onclick="cIn('.')">.</button>
+        </div>
+    </div>
+
+    <script>
+        // === SINGLE CONFIG FOR ALL APPS ===
+        const MAIN_CONFIG = `
+            const firebaseConfig = { 
+                apiKey: "AIzaSyCqmaIDptWNk8v5E5Sz5XKKSAmk6FNX6Yo", 
+                authDomain: "credit-record-24f1e.firebaseapp.com", 
+                projectId: "credit-record-24f1e", 
+                storageBucket: "credit-record-24f1e.firebasestorage.app", 
+                messagingSenderId: "181078991416", 
+                appId: "1:181078991416:web:6e562cccc19767561b7ccd", 
+                measurementId: "G-25QCCCYT9W" 
+            };
+        `;
+
+        const USERS = {
+            "1111": { name: "Admin", role: "admin" },
+            "2222": { name: "Staff", role: "staff" }
+        };
+
+        function checkLogin() {
+            const pin = document.getElementById('pinInput').value;
+            if (USERS[pin]) {
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('mainNav').style.visibility = 'visible';
+                document.getElementById('mainContainer').style.visibility = 'visible';
+                document.getElementById('calc-icon').style.display = 'flex';
+                loadApps();
+                alert(`Welcome back, ${USERS[pin].name}!`);
+            } else {
+                document.getElementById('loginError').style.display = 'block';
+                document.getElementById('pinInput').value = '';
+            }
+        }
+
+        document.getElementById('pinInput').addEventListener("keypress", function(event) {
+            if (event.key === "Enter") checkLogin();
+        });
+
+        function loadApps() {
+            const wrap = (code) => code.replace('// [[INJECT_CONFIG]]', MAIN_CONFIG);
+            document.getElementById('frame1').srcdoc = wrap(document.getElementById('code1').value);
+            document.getElementById('frame2').srcdoc = wrap(document.getElementById('code2').value);
+            document.getElementById('frame3').srcdoc = wrap(document.getElementById('code3').value);
+            document.getElementById('frame4').srcdoc = wrap(document.getElementById('code4').value);
+        }
+
+        function switchTab(num) {
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('iframe').forEach(fr => fr.classList.remove('active'));
+            const btnIndex = num - 1; 
+            document.querySelectorAll('.nav-btn')[btnIndex].classList.add('active');
+            document.getElementById('frame'+num).classList.add('active');
+        }
+
+        function toggleDark() { document.body.classList.toggle('dark-mode'); }
+        function toggleCalc() { const m = document.getElementById('calc-modal'); m.style.display = m.style.display === 'block' ? 'none' : 'block'; }
+        function cIn(v) { document.getElementById('cScreen').value += v; }
+        function cClr() { document.getElementById('cScreen').value = ''; }
+        function cCalc() { try { document.getElementById('cScreen').value = eval(document.getElementById('cScreen').value); } catch { document.getElementById('cScreen').value = 'Error'; } }
+    </script>
+
+    <textarea id="code1" style="display:none;">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Shop</title>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <style>
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background: #f4f6f8; margin: 0; padding: 0; padding-bottom: 80px; user-select: none; }
+        .header { background: #0d47a1; color: white; padding: 15px; text-align: center; font-size: 20px; font-weight: bold; position: sticky; top: 0; z-index: 50; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display:flex; justify-content:center; align-items:center; gap:10px;}
+        .live-dot { height: 10px; width: 10px; background-color: #00e676; border-radius: 50%; display: inline-block; box-shadow: 0 0 5px #00e676; }
+        .container { padding: 15px; max-width: 100%; margin: 0 auto; }
+        .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .dash-card { background: #fff; padding: 15px; border-radius: 10px; text-align: center; border: 1px solid #eee; cursor: pointer; }
+        .dash-num { font-size: 20px; font-weight: bold; display: block; margin-bottom: 5px; }
+        .dash-label { font-size: 11px; color: #777; text-transform: uppercase; }
+        .text-green { color: #28a745; } .text-red { color: #dc3545; } .text-blue { color: #007bff; }
+        .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; background: white; min-width: 600px; }
+        thead { background: #343a40; color: white; }
+        th { padding: 12px 8px; text-align: left; font-size: 13px; font-weight: 600; white-space: nowrap; }
+        td { padding: 10px 8px; border-bottom: 1px solid #eee; font-size: 14px; vertical-align: top; }
+        .col-desc { min-width: 150px; white-space: normal; } 
+        tr:nth-child(even) { background-color: #f8f9fa; }
+        .ledger-table { width: 100%; min-width: auto; border: 1px solid #eee; margin-top: 10px; }
+        .ledger-table th { background: #f1f3f4; color: #333; font-size: 12px; }
+        .ledger-table td { padding: 8px; font-size: 13px; border-bottom: 1px solid #eee; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; margin-bottom: 10px; box-sizing: border-box; background: #fafafa; }
+        input:focus { border-color: #0d47a1; outline: none; background: white; }
+        button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; color: white; margin-bottom: 5px; transition: 0.2s; }
+        button:active { transform: scale(0.98); }
+        .btn-green { background: #2e7d32; } .btn-blue { background: #1565c0; }
+        .btn-red { background: #c62828; } .btn-orange { background: #ef6c00; }
+        .btn-dark { background: #37474f; }
+        .btn-tbl { padding: 6px 10px; font-size: 12px; border-radius: 4px; margin: 2px; width: auto; display: inline-block; }
+        .btn-mini { padding: 2px 8px; width: auto; display: inline-block; margin: 0 2px; border-radius: 4px; font-size: 14px; }
+        .badge { font-size: 10px; padding: 4px 8px; border-radius: 12px; font-weight: bold; text-transform: uppercase; display: inline-block; text-align: center; }
+        .bg-full { background: #d4edda; color: #155724; } .bg-part { background: #fff3cd; color: #856404; } .bg-over { background: #f8d7da; color: #721c24; }
+        .nav { display: flex; justify-content: space-around; background: #fff; padding: 8px 0; position: fixed; bottom: 0; left: 0; right: 0; border-top: 1px solid #ccc; z-index: 9999; box-shadow: 0 -2px 5px rgba(0,0,0,0.1); }
+        .nav-btn { background: none; border: none; color: #999; font-size: 10px; display: flex; flex-direction: column; align-items: center; padding: 0; margin: 0; width: auto; }
+        .nav-btn span { font-size: 22px; margin-bottom: 2px; }
+        .nav-btn.active { color: #0d47a1; }
+        .section { display: none; } .active-section { display: block; }
+        .modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:200; align-items:center; justify-content:center; }
+        .modal-content { background:white; padding:20px; border-radius: 15px; width:90%; max-width: 400px; animation: popUp 0.3s; max-height: 85vh; overflow-y: auto; }
+        @keyframes popUp { from {transform: scale(0.9); opacity:0;} to {transform: scale(1); opacity:1;} }
+        .list-item { padding: 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .summary-box { background: #e3f2fd; padding: 10px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; font-size: 13px; }
+        .summary-item { text-align: center; }
+        .summary-val { display: block; font-weight: bold; font-size: 15px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <span class="live-dot"></span> ☁️ Cloud Shop Manager
+    </div>
+
+    <div class="container">
+        
+        <div id="sec-dash" class="section active-section">
+            <div class="dash-grid">
+                <div class="dash-card">
+                    <span class="dash-num text-green" id="d-today">Loading...</span>
+                    <span class="dash-label">Today's Cash</span>
+                </div>
+                <div class="dash-card">
+                    <span class="dash-num text-red" id="d-owed">Loading...</span>
+                    <span class="dash-label">Total Debt Owed</span>
+                </div>
+                <div class="dash-card" onclick="runIf(window.showLowStock)">
+                    <span class="dash-num text-blue" id="d-stock">0</span>
+                    <span class="dash-label">Low Stock Items (Tap)</span>
+                </div>
+                <div class="dash-card" onclick="nav('sec-trash', document.getElementById('btn-trash'))">
+                    <span class="dash-num" id="d-trash">0</span>
+                    <span class="dash-label">View Trash 🗑️</span>
+                </div>
+            </div>
+            <div style="text-align:center; margin-top:20px; color:#777; font-size:12px;">Data synced with Google Cloud</div>
+        </div>
+
+        <div id="sec-sell" class="section">
+            <div class="card">
+                <div style="display:flex; gap:5px;">
+                    <input type="text" id="search" placeholder="🔍 Search product..." onkeyup="runIf(window.renderProducts)">
+                    <button style="width:60px; background:#666;" onclick="window.startScan()">📷</button>
+                </div>
+                <div id="prodList" style="max-height: 180px; overflow-y: auto;"></div>
+                <div style="display:flex; gap:10px; margin-top:10px;">
+                    <input type="number" id="qty" placeholder="Qty" style="width: 80px;">
+                    <button class="btn-green" onclick="runIf(window.addToCart)">Add</button>
+                </div>
+                <input type="hidden" id="selIndex">
+            </div>
+
+            <div class="card">
+                <h3>🛒 Cart (Total: ₦<span id="cartTotal">0</span>)</h3>
+                <div id="cartList"></div>
+                <div style="background:#37474f; color:white; padding:10px; border-radius:8px; margin-top:10px; display:flex; justify-content:space-between; align-items:center;">
+                    <span>Cash Given:</span>
+                    <input type="number" id="payInput" placeholder="0" style="width:100px; padding:5px; margin:0; text-align:right;" onkeyup="runIf(window.calcChange)">
+                </div>
+                <div id="changeTxt" style="text-align:right; font-weight:bold; margin-top:5px; color:#2e7d32;">Change: ₦0</div>
+                
+                <div style="display:flex; gap:10px; margin-top:15px;">
+                    <button class="btn-blue" onclick="runIf(window.checkout, 'cash')">💵 Cash Sale</button>
+                    <button class="btn-orange" onclick="openCreditModal()">📒 Credit Sale</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="sec-debt" class="section">
+            <div class="card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <h3 style="margin:0;">📒 Debt Records</h3>
+                    <button class="btn-dark btn-tbl" style="font-size:14px; padding:8px;" onclick="openManualDebt()">+ Add Old Debt</button>
+                </div>
+                <input type="text" id="debtSearch" placeholder="🔍 Search name..." onkeyup="runIf(window.renderDebtors)">
+                <div class="table-responsive">
+                    <table id="debtTable">
+                        <thead>
+                            <tr>
+                                <th class="col-desc">Name & Items</th>
+                                <th>Total</th>
+                                <th>Paid</th>
+                                <th>Balance</th>
+                                <th>Status</th>
+                                <th style="text-align:center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="debtTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="sec-stock" class="section">
+            <div class="card">
+                <h3>📦 Inventory (Cloud)</h3>
+                <button class="btn-blue" onclick="openProdModal()">+ New Product</button>
+                <div id="stockList" style="margin-top:10px;"></div>
+                <div style="background:#e8f5e9; color:#2e7d32; padding:10px; margin-top:10px; font-weight:bold; text-align:center; border-radius:8px;">
+                    Total Inventory Worth: <span id="grandStockTotal">Loading...</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="sec-hist" class="section">
+            <div class="card">
+                <h3>📜 General Sales History</h3>
+                <p style="font-size:11px; color:#666;">Shows last 50 transactions (Cash & Debt Payments)</p>
+                <div id="mainHistList" style="margin-top:10px;"></div>
+            </div>
+        </div>
+
+        <div id="sec-trash" class="section">
+            <div class="card">
+                <h3>🗑️ Deleted Items</h3>
+                <div id="trashList"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="mod-credit" class="modal">
+        <div class="modal-content">
+            <h3>📝 Credit Sale</h3>
+            <input type="text" id="c-name" placeholder="Customer Name">
+            <input type="tel" id="c-phone" placeholder="Phone Number">
+            <button class="btn-green" id="btn-confirm-credit" onclick="runIf(window.checkout, 'credit')">Confirm</button>
+            <button class="btn-red" onclick="closeModals()">Cancel</button>
+        </div>
+    </div>
+    <div id="mod-prod" class="modal">
+        <div class="modal-content">
+            <h3>📦 New Product</h3>
+            <input type="text" id="p-name" placeholder="Name">
+            <input type="number" id="p-price" placeholder="Price">
+            <input type="number" id="p-stock" placeholder="Stock Qty">
+            <button class="btn-green" onclick="runIf(window.saveProduct)">Save to Cloud</button>
+            <button class="btn-red" onclick="closeModals()">Cancel</button>
+        </div>
+    </div>
+    <div id="mod-pay" class="modal">
+        <div class="modal-content">
+            <h3>💰 Receive Payment</h3>
+            <p id="pay-info" style="color:#666; font-size:14px; text-align:center;"></p>
+            <input type="hidden" id="pay-id">
+            <label>Payment Method:</label>
+            <select id="pay-method" style="margin-bottom:15px;"><option value="Cash">💵 Cash</option><option value="Transfer">🏦 Transfer</option></select>
+            <label>Amount Paying Now:</label>
+            <input type="number" id="pay-amt" placeholder="Enter Amount">
+            <button class="btn-green" onclick="runIf(window.processPayment)">Save Payment</button>
+            <button class="btn-red" onclick="closeModals()">Cancel</button>
+        </div>
+    </div>
+    <div id="mod-manual" class="modal">
+        <div class="modal-content">
+            <h3>➕ Add/Edit Debt</h3>
+            <input type="hidden" id="m-id">
+            <input type="text" id="m-name" placeholder="Name">
+            <input type="text" id="m-phone" placeholder="Phone">
+            <input type="number" id="m-amt" placeholder="Total Amount Owed">
+            <input type="text" id="m-desc" placeholder="Note (e.g. Rice)">
+            <button class="btn-green" onclick="runIf(window.saveManualDebt)">Save Record</button>
+            <button class="btn-red" onclick="closeModals()">Cancel</button>
+        </div>
+    </div>
+    <div id="mod-hist" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-top:0;">📜 Customer Ledger</h3>
+            <h4 id="h-name" style="color:#0d47a1; margin-top:0; border-bottom:1px solid #eee; padding-bottom:5px;"></h4>
+            <div class="summary-box">
+                <div class="summary-item"><span>Total Debt</span><span class="summary-val" id="h-total">0</span></div>
+                <div class="summary-item"><span>Paid</span><span class="summary-val text-green" id="h-paid">0</span></div>
+                <div class="summary-item"><span>Balance</span><span class="summary-val text-red" id="h-bal">0</span></div>
+            </div>
+            <p style="font-size:12px; font-weight:bold; margin-bottom:5px;">Payment History:</p>
+            <table class="ledger-table"><thead><tr><th>Date</th><th>Method</th><th style="text-align:right;">Amount</th></tr></thead><tbody id="h-list"></tbody></table>
+            <br><button class="btn-dark" onclick="closeModals()">Close</button>
+        </div>
+    </div>
+    
+    <div id="mod-lowstock" class="modal">
+        <div class="modal-content">
+            <h3 style="color:#d32f2f;">⚠️ Low Stock Alert</h3>
+            <div id="lowStockList" style="max-height:300px; overflow-y:auto; margin-bottom:15px;"></div>
+            <button class="btn-dark" onclick="closeModals()">Close</button>
+        </div>
+    </div>
+
+    <div id="mod-scan" class="modal">
+        <div class="modal-content">
+            <h3>📷 Scan Barcode</h3>
+            <div id="reader" style="width:100%"></div>
+            <button class="btn-red" onclick="window.stopScan()">Close</button>
+        </div>
+    </div>
+
+    <div class="nav">
+        <button class="nav-btn active" onclick="nav('sec-dash', this)"><span>📊</span>Dash</button>
+        <button class="nav-btn" onclick="nav('sec-sell', this)"><span>🛒</span>Sell</button>
+        <button class="nav-btn" onclick="nav('sec-debt', this)"><span>📒</span>Debt</button>
+        <button class="nav-btn" onclick="nav('sec-stock', this)"><span>📦</span>Stock</button>
+        <button class="nav-btn" onclick="nav('sec-hist', this)"><span>📜</span>Hist</button>
+    </div>
+
+<script>
+    function nav(id, btn) {
+        document.querySelectorAll('.section').forEach(s=>s.classList.remove('active-section'));
+        document.getElementById(id).classList.add('active-section');
+        document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        if(id === 'sec-debt' && window.renderDebtors) window.renderDebtors();
+    }
+    
+    function closeModals() { document.querySelectorAll('.modal').forEach(m=>m.style.display='none'); }
+    function openCreditModal() { document.getElementById('mod-credit').style.display='flex'; }
+    function openProdModal() { document.getElementById('mod-prod').style.display='flex'; }
+    function openManualDebt() { 
+        document.getElementById('m-id').value = ''; 
+        document.getElementById('m-name').value = ''; 
+        document.getElementById('m-phone').value = ''; 
+        document.getElementById('m-amt').value = ''; 
+        document.getElementById('m-desc').value = ''; 
+        document.getElementById('mod-manual').style.display='flex'; 
+    }
+    function runIf(fn, arg) { if(typeof fn === 'function') fn(arg); else alert("Connecting to Cloud... Please wait."); }
+
+    // SCANNER LOGIC
+    let html5QrcodeScanner;
+    window.startScan = function() {
+        if(typeof Html5QrcodeScanner === 'undefined') {
+            alert("Scanner library not loaded. Check internet connection.");
+            return;
+        }
+        document.getElementById('mod-scan').style.display = 'flex';
+        // Clear previous instance if any
+        document.getElementById("reader").innerHTML = "";
+        html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+        html5QrcodeScanner.render(onScanSuccess);
+    }
+    
+    window.stopScan = function() {
+        if(html5QrcodeScanner) {
+            html5QrcodeScanner.clear().then(() => {
+                document.getElementById('mod-scan').style.display = 'none';
+            }).catch(error => {
+                document.getElementById('mod-scan').style.display = 'none';
+            });
+        } else {
+             document.getElementById('mod-scan').style.display = 'none';
+        }
+    }
+
+    function onScanSuccess(decodedText, decodedResult) {
+        document.getElementById('search').value = decodedText;
+        window.renderProducts();
+        window.stopScan();
+    }
+</script>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, setDoc, query, orderBy, limit } 
+    from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    // [[INJECT_CONFIG]]
+
+    try {
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        
+        let products = [], sales = [], debtors = [], trash = [], cart = [];
+
+        onSnapshot(collection(db, "products"), (snapshot) => { 
+            products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
+            window.renderProducts(); window.renderStock(); window.renderDash(); 
+            // Sound Alert
+            if(products.some(p => p.stock <= 5)) {
+                const a = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+                a.volume = 0.2; a.play().catch(e=>{});
+            }
+        });
+        const salesQ = query(collection(db, "sales"), orderBy("date", "desc"), limit(50));
+        onSnapshot(salesQ, (snapshot) => { sales = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); window.renderHistory(); window.renderDash(); });
+        const debtorsQ = query(collection(db, "debtors"), orderBy("date", "desc"));
+        onSnapshot(debtorsQ, (snapshot) => { debtors = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); window.renderDebtors(); window.renderDash(); });
+        onSnapshot(collection(db, "trash"), (snapshot) => { trash = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); window.renderTrash(); window.renderDash(); });
+
+        window.renderDash = () => {
+            const today = new Date().toISOString().split('T')[0];
+            const todayCash = sales.filter(s => s.date.startsWith(today) && (s.type === 'Cash' || s.type === 'Debt Payment')).reduce((a, b) => a + b.total, 0);
+            const totalOwed = debtors.reduce((a,b) => {
+                const paid = (b.payments || []).reduce((x,y) => x + y.amount, 0);
+                return a + (b.totalDebt - paid);
+            }, 0);
+            document.getElementById('d-today').innerText = "₦" + todayCash.toLocaleString();
+            document.getElementById('d-owed').innerText = "₦" + totalOwed.toLocaleString();
+            document.getElementById('d-stock').innerText = products.filter(p => p.stock <= 5).length;
+            document.getElementById('d-trash').innerText = trash.length;
+        }
+
+        window.showLowStock = () => {
+            const low = products.filter(p => p.stock <= 5);
+            const div = document.getElementById('lowStockList');
+            div.innerHTML = '';
+            if(low.length === 0) {
+                div.innerHTML = '<p style="text-align:center; padding:20px;">✅ Good news! All stock levels are healthy.</p>';
+            } else {
+                low.forEach(p => {
+                    div.innerHTML += `<div class="list-item" style="background:#fff3cd">
+                        <b>${p.name}</b> <span style="color:#c62828; font-weight:bold">${p.stock} left</span>
+                    </div>`;
+                });
+            }
+            document.getElementById('mod-lowstock').style.display = 'flex';
+        }
+
+        window.renderProducts = () => {
+            const q = document.getElementById('search').value.toLowerCase();
+            const div = document.getElementById('prodList'); div.innerHTML = '';
+            products.forEach((p, i) => {
+                if(p.name.toLowerCase().includes(q)) {
+                    let color = p.stock < 5 ? '#fff3cd' : 'white';
+                    div.innerHTML += `<div onclick="window.selProd(${i})" style="padding:10px; border-bottom:1px solid #eee; background:${color}; cursor:pointer;"><b>${p.name}</b> <small>(Stock: ${p.stock})</small><div style="float:right;">₦${p.price}</div></div>`;
+                }
+            });
+        }
+
+        window.selProd = (i) => { document.getElementById('selIndex').value = i; document.getElementById('qty').focus(); }
+
+        window.addToCart = () => {
+            const idx = document.getElementById('selIndex').value; const qty = parseInt(document.getElementById('qty').value);
+            if(idx === '' || !qty) return;
+            const p = products[idx];
+            if(qty > p.stock) { alert("Not enough stock!"); return; }
+            
+            const exist = cart.find(c => c.id === p.id);
+            if(exist) { exist.qty += qty; exist.sub = exist.price * exist.qty; }
+            else { cart.push({ ...p, idx, qty, sub: p.price * qty }); }
+            
+            window.renderCart(); document.getElementById('search').value = ''; document.getElementById('qty').value = ''; window.renderProducts();
+        }
+
+        window.renderCart = () => {
+            const div = document.getElementById('cartList'); div.innerHTML = ''; let total = 0;
+            cart.forEach((c, i) => { 
+                total += c.sub; 
+                div.innerHTML += `
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding:5px;">
+                    <span>${c.name}</span>
+                    <div style="display:flex; align-items:center;">
+                        <button class="btn-blue btn-mini" onclick="window.modQty(${i}, -1)">-</button>
+                        <span style="font-weight:bold; margin:0 5px;">${c.qty}</span>
+                        <button class="btn-blue btn-mini" onclick="window.modQty(${i}, 1)">+</button>
+                        <span style="margin-left:5px;">₦${c.sub}</span>
+                        <button class="btn-red btn-mini" onclick="window.modQty(${i}, -9999)" style="margin-left:10px;">x</button>
+                    </div>
+                </div>`; 
+            });
+            document.getElementById('cartTotal').innerText = total.toLocaleString(); window.calcChange();
+        }
+
+        window.modQty = (i, delta) => {
+            if(delta === -9999) { cart.splice(i, 1); } 
+            else {
+                cart[i].qty += delta;
+                if(cart[i].qty <= 0) { cart.splice(i, 1); }
+                else { cart[i].sub = cart[i].price * cart[i].qty; }
+            }
+            window.renderCart();
+        }
+
+        window.calcChange = () => {
+            const total = parseInt(document.getElementById('cartTotal').innerText.replace(/,/g,'')); const pay = parseInt(document.getElementById('payInput').value);
+            if(pay) document.getElementById('changeTxt').innerText = "Change: ₦" + (pay - total).toLocaleString();
+        }
+
+        window.checkout = async (type) => {
+            if(cart.length === 0) return;
+            cart.forEach(async (c) => { const newStock = c.stock - c.qty; const pRef = doc(db, "products", c.id); await updateDoc(pRef, { stock: newStock }); });
+            const total = cart.reduce((a,b) => a + b.sub, 0); const desc = cart.map(c => `${c.name}(x${c.qty})`).join(', '); const date = new Date().toISOString();
+
+            if(type === 'cash') {
+                await addDoc(collection(db, "sales"), { date, desc, total, type: 'Cash' }); alert("Cash Sale Synced!");
+            } else {
+                const name = document.getElementById('c-name').value;
+                if(!name) { alert("Enter Name"); return; }
+                await addDoc(collection(db, "debtors"), { name, phone: document.getElementById('c-phone').value, desc, totalDebt: total, payments: [], date });
+                alert("Added to Debtors Book"); window.closeModals();
+            }
+            cart = []; document.getElementById('payInput').value = ''; window.renderCart();
+        }
+
+        window.renderDebtors = () => {
+            const q = document.getElementById('debtSearch').value.toLowerCase();
+            const tbody = document.getElementById('debtTableBody'); tbody.innerHTML = '';
+            debtors.forEach((d) => {
+                if(d.name.toLowerCase().includes(q)) {
+                    const paid = (d.payments || []).reduce((a,b) => a + b.amount, 0);
+                    const rem = d.totalDebt - paid;
+                    let status = rem <= 0 ? 'Full' : (paid > 0 ? 'Part' : 'Unpaid');
+                    let badge = status === 'Full' ? 'bg-full' : (status === 'Part' ? 'bg-part' : 'bg-over');
+                    tbody.innerHTML += `<tr><td class="col-desc"><b style="font-size:15px;">${d.name}</b><small style="color:#666; display:block; margin-top:4px; font-style:italic;">${d.desc}</small><small style="color:#999;">${new Date(d.date).toLocaleDateString()}</small></td><td>₦${d.totalDebt.toLocaleString()}</td><td class="text-green">₦${paid.toLocaleString()}</td><td class="text-red" style="font-weight:bold;">₦${rem.toLocaleString()}</td><td><span class="badge ${badge}">${status}</span></td><td style="text-align:center;">${rem > 0 ? `<button class="btn-green btn-tbl" onclick="window.openPay('${d.id}')">Pay</button>` : ''}<button class="btn-orange btn-tbl" onclick="window.editDebt('${d.id}')">Edit</button><button class="btn-blue btn-tbl" onclick="window.viewHist('${d.id}')">📜 History</button><button class="btn-red btn-tbl" onclick="window.moveToTrash('${d.id}')">X</button></td></tr>`;
+                }
+            });
+        }
+
+        window.editDebt = (id) => {
+            const d = debtors.find(x => x.id === id);
+            document.getElementById('m-id').value = id;
+            document.getElementById('m-name').value = d.name;
+            document.getElementById('m-phone').value = d.phone;
+            document.getElementById('m-amt').value = d.totalDebt;
+            document.getElementById('m-desc').value = d.desc;
+            document.getElementById('mod-manual').style.display = 'flex';
+        }
+
+        window.saveManualDebt = async () => {
+            const id = document.getElementById('m-id').value;
+            const name = document.getElementById('m-name').value;
+            const phone = document.getElementById('m-phone').value;
+            const amt = parseInt(document.getElementById('m-amt').value);
+            const desc = document.getElementById('m-desc').value;
+
+            if(name && amt) {
+                if(id) {
+                    await updateDoc(doc(db, "debtors", id), { name, phone, totalDebt: amt, desc });
+                } else {
+                    await addDoc(collection(db, "debtors"), { name, phone, desc: desc || "Manual", totalDebt: amt, payments: [], date: new Date().toISOString() });
+                }
+                window.closeModals();
+                document.getElementById('m-id').value = '';
+            }
+        }
+
+        window.openPay = (id) => {
+            const d = debtors.find(x => x.id === id); const paid = (d.payments || []).reduce((a,b) => a+b.amount, 0);
+            document.getElementById('pay-info').innerText = `${d.name} owes ₦${(d.totalDebt - paid).toLocaleString()}`;
+            document.getElementById('pay-id').value = id; document.getElementById('mod-pay').style.display = 'flex';
+        }
+
+        window.processPayment = async () => {
+            const id = document.getElementById('pay-id').value; const amt = parseInt(document.getElementById('pay-amt').value); const method = document.getElementById('pay-method').value;
+            if(!amt) return;
+            const d = debtors.find(x => x.id === id);
+            await updateDoc(doc(db, "debtors", id), { payments: [...d.payments, { date: new Date().toISOString(), amount: amt, method: method }] });
+            await addDoc(collection(db, "sales"), { date: new Date().toISOString(), desc: `Debt Pay: ${d.name} (${method})`, total: amt, type: 'Debt Payment' });
+            document.getElementById('pay-amt').value = ''; window.closeModals(); alert(`Payment of ₦${amt} via ${method} Synced!`);
+        }
+
+        window.viewHist = (id) => {
+            const d = debtors.find(x => x.id === id);
+            document.getElementById('h-name').innerText = d.name;
+            const tbody = document.getElementById('h-list'); tbody.innerHTML = '';
+            const paid = (d.payments || []).reduce((a,b) => a + b.amount, 0);
+            document.getElementById('h-total').innerText = "₦" + d.totalDebt.toLocaleString();
+            document.getElementById('h-paid').innerText = "₦" + paid.toLocaleString();
+            document.getElementById('h-bal').innerText = "₦" + (d.totalDebt - paid).toLocaleString();
+            if(!d.payments || d.payments.length === 0) tbody.innerHTML = "<tr><td colspan='3' style='text-align:center; padding:10px;'>No payments yet.</td></tr>";
+            else { [...d.payments].sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(p => { tbody.innerHTML += `<tr><td>${new Date(p.date).toLocaleDateString()}</td><td>${p.method === 'Transfer' ? '🏦' : '💵'} ${p.method||'Cash'}</td><td style="text-align:right; font-weight:bold; color:#2e7d32;">₦${p.amount.toLocaleString()}</td></tr>`; }); }
+            document.getElementById('mod-hist').style.display = 'flex';
+        }
+
+        window.moveToTrash = async (id) => { if(!confirm("Delete?")) return; const d = debtors.find(x => x.id === id); await setDoc(doc(db, "trash", id), { ...d, deletedAt: new Date().toISOString() }); await deleteDoc(doc(db, "debtors", id)); }
+        window.renderTrash = () => { const div = document.getElementById('trashList'); div.innerHTML = ''; trash.forEach(t => { div.innerHTML += `<div class="list-item"><div><b>${t.name}</b><br><small>Del: ${new Date(t.deletedAt).toLocaleDateString()}</small></div><div><button class="btn-blue btn-tbl" onclick="window.restore('${t.id}')">Restore</button> <button class="btn-red btn-tbl" onclick="window.permDel('${t.id}')">X</button></div></div>`; }); }
+        window.restore = async (id) => { const t = trash.find(x => x.id === id); const { deletedAt, ...rest } = t; await setDoc(doc(db, "debtors", id), rest); await deleteDoc(doc(db, "trash", id)); }
+        window.permDel = async (id) => { if(confirm("Permanently delete?")) await deleteDoc(doc(db, "trash", id)); }
+        
+        window.renderStock = () => { 
+            const div = document.getElementById('stockList'); div.innerHTML = ''; 
+            let grandTotal = 0;
+            products.forEach((p, i) => { 
+                const val = p.price * p.stock;
+                grandTotal += val;
+                div.innerHTML += `
+                <div class="list-item">
+                    <div><b>${p.name}</b><br><small>₦${p.price} | Stock: ${p.stock} | Val: ₦${val.toLocaleString()}</small></div>
+                    <div style="display:flex; gap:5px;">
+                        <button class="btn-blue btn-tbl" onclick="window.addStock('${p.id}')">Refill</button>
+                        <button class="btn-orange btn-tbl" onclick="window.editStock('${p.id}')">Edit</button>
+                        <button class="btn-red btn-tbl" onclick="window.deleteProduct('${p.id}')">Del</button>
+                    </div>
+                </div>`; 
+            });
+            document.getElementById('grandStockTotal').innerText = "₦" + grandTotal.toLocaleString();
+        }
+
+        window.deleteProduct = async (id) => {
+            if(confirm("Are you sure you want to delete this product?")) {
+                await deleteDoc(doc(db, "products", id));
+            }
+        }
+
+        window.addStock = async (id) => { let n = prompt("Add Qty:"); if(n) { const p = products.find(x => x.id === id); await updateDoc(doc(db, "products", id), { stock: p.stock + parseInt(n) }); } }
+        
+        window.editStock = async (id) => { 
+            const p = products.find(x => x.id === id);
+            let n = prompt("Enter CORRECT total stock for " + p.name + ":", p.stock); 
+            if(n !== null) { 
+                await updateDoc(doc(db, "products", id), { stock: parseInt(n) }); 
+            } 
+        }
+
+        window.saveProduct = async () => { 
+            const nameRaw = document.getElementById('p-name').value;
+            const price = parseInt(document.getElementById('p-price').value);
+            const stock = parseInt(document.getElementById('p-stock').value);
+
+            if(!nameRaw || !price) return alert("Name and Price required!");
+
+            const exists = products.find(p => p.name.trim().toLowerCase() === nameRaw.trim().toLowerCase());
+            if(exists) {
+                alert("Error: Product '" + nameRaw + "' already exists!");
+                return;
+            }
+
+            await addDoc(collection(db, "products"), { name: nameRaw, price, stock }); 
+            window.closeModals(); 
+            document.getElementById('p-name').value = '';
+            document.getElementById('p-price').value = '';
+            document.getElementById('p-stock').value = '';
+        }
+        
+        window.renderHistory = () => { 
+            const div = document.getElementById('mainHistList'); div.innerHTML = ''; 
+            sales.forEach(s => { 
+                div.innerHTML += `
+                <div class="list-item">
+                    <div><b>₦${s.total.toLocaleString()}</b><br><small>${s.desc} (${s.type})</small><br><span style="font-size:10px; color:#999">${new Date(s.date).toLocaleString()}</span></div>
+                    <button class="btn-red btn-tbl" onclick="window.deleteSale('${s.id}')">Del</button>
+                </div>`; 
+            }); 
+        }
+
+        window.deleteSale = async (id) => {
+            if(confirm("Delete this sale?")) {
+                await deleteDoc(doc(db, "sales", id));
+            }
+        }
+    } catch(e) { console.error("Firebase Error", e); }
+</script>
+</body>
+</html>
+    </textarea>
+
+    <textarea id="code2" style="display:none;">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Starbite Cloud Recorder</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
   <style>
-    /* --- SECURITY LOCK SCREEN --- */
-    #securityOverlay { position: fixed; inset: 0; background: #1e3a8a; z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; }
-    .pin-dot { width: 15px; height: 15px; background: rgba(255,255,255,0.3); border-radius: 50%; margin: 0 5px; transition: 0.2s; }
-    .pin-dot.filled { background: #fff; transform: scale(1.2); }
-    .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 30px; }
-    .key { width: 70px; height: 70px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; cursor: pointer; transition: 0.2s; border: 2px solid rgba(255,255,255,0.2); }
-    .key:active { background: rgba(255,255,255,0.4); transform: scale(0.95); }
-    .key-del { background: transparent; border-color: transparent; color: #fca5a5; font-size: 18px; }
-
-    /* Global Tab Styles */
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
-    .nav-btn { transition: 0.3s; }
-    .nav-btn.active { background-color: white; color: #1e40af; border-bottom: 4px solid #1e40af; }
-
-    /* File 1 Styles (Debtor) */
-    .modal-overlay { background-color: rgba(0, 0, 0, 0.5); }
-    .s-full { background-color: #d1fae5; } .s-part { background-color: #fef3c7; } .s-over { background-color: #fee2e2; }
-
-    /* File 2 Styles (Production) */
     #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); padding: 10px 20px; border-radius: 8px; color: white; z-index: 1000; opacity: 0; visibility: hidden; transition: 0.3s; }
     #toast.show { opacity: 1; visibility: visible; }
     .s { background:#28a745; } .e { background:#dc3545; }
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 500; display: flex; justify-content: center; align-items: center; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen p-4">
+  <div class="max-w-5xl mx-auto bg-white shadow-lg rounded-2xl p-6">
+    <div class="flex justify-between items-center mb-4">
+        <h1 class="text-2xl font-bold">STARBITE CLOUD RECORDER</h1>
+        <button onclick="openProdSet()" class="bg-gray-700 text-white px-3 py-1 rounded text-sm">⚙️ Products</button>
+    </div>
+    
+    <div class="bg-indigo-100 rounded-xl p-3 mb-4 border-2 border-indigo-500">
+        <h3 class="font-bold text-indigo-800">1. Capital & Recovery (Synced)</h3>
+        <div class="grid grid-cols-2 gap-3 text-xs mb-2">
+            <div class="bg-white p-2 rounded"><label>Production Capital (₦)</label><input id="pCap" type="number" class="w-full border p-1 rounded" oninput="saveCap()"></div>
+            <div class="bg-white p-2 rounded"><label>Misc/Drinks Capital (₦)</label><input id="mCap" type="number" class="w-full border p-1 rounded" oninput="saveCap()"></div>
+        </div>
+        <div class="text-sm border-t border-indigo-300 pt-2 font-semibold">
+            Profit: ₦<span id="cumProfit" class="text-green-600">0</span> | Total Cap: ₦<span id="totCap">0</span> | <span class="text-red-600">Rem: ₦<span id="remCap">0</span></span>
+        </div>
+    </div>
 
-    /* File 3 Styles (Charging) */
+    <div id="inputCard" class="bg-gray-100 rounded-xl p-3 mb-3 border-2 border-transparent" oninput="calc()">
+      <div class="flex gap-2 mb-2 text-sm"><input id="date" type="date" class="p-1 rounded"><input id="time" type="time" class="p-1 rounded"></div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs" id="prodGrid">Loading products...</div>
+      <div class="font-semibold mt-2 text-sm">Prod. Sales: ₦<span id="prodTot">0</span></div>
+    </div>
+
+    <div class="bg-yellow-100 rounded-xl p-3 mb-3" oninput="calc()">
+      <h3 class="font-semibold mb-2">2. Cash & Deduction</h3>
+      <div class="grid grid-cols-2 gap-2 text-xs mb-2">
+        <div><label>Start Float (₦)</label><input id="float" type="number" class="w-full p-1 rounded border"></div>
+        <div><label>Cash in Hand (₦)</label><input id="cash" type="number" class="w-full p-1 rounded border"></div>
+      </div>
+      <div class="flex justify-between text-sm font-bold bg-white p-2 rounded border">
+        <span>Misc Sales: ₦<span id="miscSale">0</span></span>
+        <span>Total Sales: ₦<span id="dayTot">0</span></span>
+        <span>Var: ₦<span id="var">0</span></span>
+      </div>
+    </div>
+
+    <div class="bg-gray-100 rounded-xl p-3 mb-3">
+      <h3 class="font-semibold">3. Expenses</h3>
+      <div class="flex gap-2 text-sm my-2">
+        <input id="expDesc" placeholder="Item" class="p-1 rounded border w-full">
+        <input id="expAmt" type="number" placeholder="Amt" class="p-1 rounded border w-full">
+        <button onclick="addExp()" id="expBtn" class="bg-red-600 text-white px-3 rounded">Add</button>
+      </div>
+      <div class="text-sm font-semibold">Total Exp: ₦<span id="expTot">0</span></div>
+      <ul id="expList" class="mt-1"></ul>
+    </div>
+
+    <div class="flex flex-wrap gap-2 text-xs items-center">
+      <button onclick="save()" id="saveBtn" class="bg-blue-600 text-white px-3 py-1 rounded shadow">Save</button>
+      <button onclick="editMode(false)" id="cancelBtn" class="hidden bg-gray-500 text-white px-3 py-1 rounded">Cancel</button>
+      <button onclick="$('hist').classList.toggle('hidden')" class="bg-green-600 text-white px-3 py-1 rounded">History</button>
+      <button onclick="expCSV()" class="bg-yellow-500 text-white px-3 py-1 rounded">CSV</button>
+      <button onclick="wipe()" class="bg-red-500 text-white px-3 py-1 rounded">Clear All</button>
+      <div class="ml-auto flex gap-1">
+        <select id="repType" class="p-1 border rounded" onchange="uiDate()">
+          <option value="monthly">Monthly</option><option value="yearly">Yearly</option><option value="range">Range</option>
+        </select>
+        <div id="dtPick" class="flex gap-1"></div>
+        <button onclick="genPDF()" class="bg-indigo-600 text-white px-2 rounded">PDF</button>
+      </div>
+    </div>
+
+    <div id="hist" class="hidden bg-white rounded-xl p-3 border mt-4 overflow-auto">
+      <div class="flex justify-around bg-gray-100 p-2 text-sm font-bold mb-2">
+          <span>Sales: ₦<span id="allSales">0</span></span><span>Profit: ₦<span id="allProf">0</span></span>
+      </div>
+      <table class="w-full text-left text-xs table-auto"><thead class="bg-gray-100"><tr id="hHead"></tr></thead><tbody id="hBody"></tbody><tfoot id="hFoot" class="bg-gray-100 font-bold"></tfoot></table>
+    </div>
+  </div>
+
+  <div id="prodModal" class="modal-overlay hidden">
+    <div class="bg-white p-5 rounded-lg w-11/12 max-w-md max-h-[80vh] overflow-y-auto">
+      <h2 class="text-xl font-bold mb-3">Manage Products</h2>
+      <div class="flex gap-2 mb-4">
+        <input id="newPName" placeholder="Name (e.g. Meat Pie)" class="border p-2 rounded w-full">
+        <input id="newPPrice" type="number" placeholder="Price" class="border p-2 rounded w-24">
+        <button onclick="addProd()" class="bg-green-600 text-white px-3 rounded">Add</button>
+      </div>
+      <div id="prodSetList" class="space-y-2"></div>
+      <button onclick="$('prodModal').classList.add('hidden')" class="mt-4 bg-gray-500 text-white px-4 py-2 rounded w-full">Close</button>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getFirestore, collection, addDoc, doc, setDoc, onSnapshot, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+  // [[INJECT_CONFIG]]
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  let P = [
+    {id:'egg_roll',n:'Egg roll',p:500},{id:'meat_pie',n:'Meat pie',p:600},{id:'buns',n:'Buns',p:100},{id:'fish_roll',n:'Fish roll',p:500},
+    {id:'cake',n:'Cake',p:800},{id:'small_cake',n:'Small cake',p:200},{id:'chin_sachet',n:'Chin chin (sachet)',p:300},{id:'chin_bag',n:'Chin chin (bag)',p:7500}
+  ];
+
+  const $ = id => document.getElementById(id), val = id => Number($(id).value) || 0, setT = (id, t) => $(id).innerText = t, fmt = n => n.toLocaleString();
+  let exp = [], editId = null, editExpIdx = null, h = [];
+
+  function init() {
+    setNow(); uiDate();
+
+    onSnapshot(doc(db, "settings", "products"), (d) => {
+        if(d.exists() && d.data().list) {
+            P = d.data().list;
+        } else {
+            setDoc(doc(db, "settings", "products"), { list: P });
+        }
+        renderProdGrid();
+        renderProdSettings();
+        $('hHead').innerHTML = `<th>Date</th>${P.map(p => `<th>${p.n}</th>`).join('')}<th>Rem</th><th>Prod</th><th>Misc</th><th>Tot</th><th>Exp</th><th>Prof</th><th>Var</th><th>Act</th>`;
+        render(); 
+    });
+
+    onSnapshot(collection(db, "records"), (snap) => {
+      h = snap.docs.map(doc => ({ ...doc.data(), fid: doc.id }));
+      render();
+    });
+
+    onSnapshot(doc(db, "settings", "capital"), (doc) => {
+      if(doc.exists()) { $('pCap').value = doc.data().p || 0; $('mCap').value = doc.data().m || 0; }
+      calcCapStatus();
+    });
+  }
+
+  window.renderProdGrid = function() {
+    $('prodGrid').innerHTML = P.map(p => `
+      <div class="bg-white rounded p-2 border">
+        <label>${p.n} <small class="text-gray-400">(${p.p})</small></label>
+        <input type="number" placeholder="Qty" data-id="${p.id}" class="qIn w-full p-1 border rounded mt-1">
+        <div class="flex justify-between mt-1"><span class="text-xs">₦<span class="lTot">0</span></span>
+        <input type="number" placeholder="Rem" class="rIn w-12 p-1 border rounded text-xs" value="0"></div>
+      </div>`).join('');
+  }
+
+  window.openProdSet = function() { $('prodModal').classList.remove('hidden'); }
+  
+  window.renderProdSettings = function() {
+      $('prodSetList').innerHTML = P.map((p, i) => `
+        <div class="flex justify-between items-center bg-gray-100 p-2 rounded">
+            <span><b>${p.n}</b> (₦${p.p})</span>
+            <button onclick="delProd(${i})" class="bg-red-500 text-white px-2 rounded text-xs">Del</button>
+        </div>
+      `).join('');
+  }
+
+  window.addProd = async function() {
+      const n = $('newPName').value.trim();
+      const p = Number($('newPPrice').value);
+      if(!n || !p) return alert("Enter name and price");
+      const id = n.toLowerCase().replace(/\s+/g, '_') + '_' + Math.floor(Math.random()*1000);
+      const newList = [...P, { id, n, p }];
+      await setDoc(doc(db, "settings", "products"), { list: newList });
+      $('newPName').value = ''; $('newPPrice').value = '';
+  }
+
+  window.delProd = async function(idx) {
+      if(!confirm("Delete this product?")) return;
+      const newList = P.filter((_, i) => i !== idx);
+      await setDoc(doc(db, "settings", "products"), { list: newList });
+  }
+
+  window.setNow = function() { const d = new Date(); $('date').value = d.toISOString().split('T')[0]; $('time').value = d.toTimeString().slice(0, 5); }
+  
+  window.uiDate = function() {
+    const t = $('repType').value, d = new Date(), y = d.getFullYear(), m = (d.getMonth() + 1).toString().padStart(2, '0');
+    $('dtPick').innerHTML = t === 'monthly' ? `<input id="mPick" type="month" value="${y}-${m}" class="p-1 border rounded text-xs">` :
+      t === 'yearly' ? `<input id="yPick" type="number" value="${y}" class="p-1 border rounded text-xs w-16">` :
+      `<input id="sDate" type="date" class="p-1 text-xs"><input id="eDate" type="date" class="p-1 text-xs">`;
+    if (t === 'range') { $('sDate').value = `${y}-${m}-01`; $('eDate').value = `${y}-${m}-${d.getDate()}`; }
+  }
+
+  window.calc = function() {
+    let pTot = 0;
+    document.querySelectorAll('.qIn').forEach(i => {
+      const p = P.find(x => x.id === i.dataset.id);
+      if(p) {
+          const rem = Number(i.parentElement.querySelector('.rIn').value) || 0;
+          const sQty = Math.max(0, (Number(i.value) || 0) - rem), amt = sQty * p.p;
+          i.parentElement.querySelector('.lTot').innerText = fmt(amt); pTot += amt;
+      }
+    });
+    setT('prodTot', fmt(pTot));
+    const fl = val('float'), ch = val('cash'), mSale = Math.max(0, ch - fl - pTot), day = pTot + mSale, vari = ch - (fl + day);
+    setT('miscSale', fmt(mSale)); setT('dayTot', fmt(day));
+    const vEl = $('var'); vEl.innerText = fmt(vari); vEl.style.color = vari === 0 ? 'green' : vari > 0 ? 'blue' : 'red';
+    return { pTot, mSale, day, vari, fl, ch };
+  }
+
+  window.addExp = function() {
+    const d = $('expDesc').value, a = val('expAmt'); if (!d || a <= 0) return alert('Invalid Expense');
+    if (editExpIdx !== null) exp[editExpIdx] = { d, a }; else exp.push({ d, a });
+    $('expDesc').value = ''; $('expAmt').value = ''; editExpIdx = null; $('expBtn').innerText = 'Add'; renExp();
+  }
+  
+  function renExp() {
+    setT('expTot', fmt(exp.reduce((s, x) => s + x.a, 0)));
+    $('expList').innerHTML = exp.map((x, i) => `<li class="flex justify-between text-xs mt-1"><span>${x.d}: ₦${fmt(x.a)}</span><div><button onclick="edExp(${i})" class="bg-gray-400 text-white px-1 mr-1">E</button><button onclick="delExp(${i})" class="bg-red-500 text-white px-1">X</button></div></li>`).join('');
+  }
+  window.edExp = function(i) { $('expDesc').value = exp[i].d; $('expAmt').value = exp[i].a; editExpIdx = i; $('expBtn').innerText = 'Upd'; }
+  window.delExp = function(i) { exp.splice(i, 1); renExp(); }
+
+  window.save = async function() {
+    const c = calc();
+    if (c.day === 0 && !confirm('Zero sales. Continue?')) return;
+    const exT = exp.reduce((s, x) => s + x.a, 0);
+    const rec = {
+      id: editId || Date.now(), dt: $('date').value + ' ' + $('time').value, iso: new Date($('date').value + 'T' + $('time').value).toISOString(),
+      items: Array.from(document.querySelectorAll('.qIn')).map(i => ({ id: i.dataset.id, q: Number(i.value) || 0, r: Number(i.parentElement.querySelector('.rIn').value) || 0 })),
+      exp, prod: c.pTot, misc: c.mSale, tot: c.day, prof: c.day - exT, var: c.vari, fl: c.fl, ch: c.ch, ed: !!editId
+    };
+
+    try {
+      if (editId) {
+        const target = h.find(r => r.id === editId);
+        if(target) await setDoc(doc(db, "records", target.fid), rec);
+        toast('Updated Cloud');
+      } else {
+        await addDoc(collection(db, "records"), rec);
+        toast('Saved to Cloud');
+      }
+      editMode(false);
+    } catch(e) { alert("Error saving: " + e.message); }
+  }
+
+  function render() {
+    const sorted = h.sort((a, b) => new Date(b.iso) - new Date(a.iso));
+    let gS = 0, gP = 0, gM = 0, gPr = 0, gE = 0, pT = P.map(() => 0), rT = 0;
+
+    $('hBody').innerHTML = sorted.length ? sorted.map(r => {
+      gS += r.tot; gP += r.prof; gM += r.misc; gPr += r.prod; gE += (r.exp || []).reduce((s, x) => s + x.a, 0);
+      return `<tr class="border-b"><td class="p-1 border">${r.dt}${r.ed ? '*' : ''}</td>
+        ${P.map((p, i) => { const it = r.items.find(x => x.id === p.id) || { q: 0, r: 0 }; pT[i] += it.q; rT += it.r; return `<td class="border">${it.q || '-'}</td>`; }).join('')}
+        <td class="border">${r.items.reduce((s, x) => s + x.r, 0)}</td><td class="border">₦${fmt(r.prod)}</td><td class="border">₦${fmt(r.misc)}</td>
+        <td class="border font-bold">₦${fmt(r.tot)}</td><td class="border">₦${fmt((r.exp || []).reduce((s, x) => s + x.a, 0))}</td><td class="border">₦${fmt(r.prof)}</td>
+        <td class="border ${r.var < 0 ? 'text-red-500' : 'text-blue-500'}">₦${fmt(r.var)}</td>
+        <td class="border flex">
+            <button onclick="load(${r.id})" class="bg-blue-500 text-white px-1">E</button>
+            <button onclick="delRec(${r.id})" class="bg-red-500 text-white px-1 ml-1">X</button>
+        </td></tr>`;
+    }).join('') : '<tr><td colspan="15" class="text-center p-2">No Cloud Data</td></tr>';
+
+    setT('allSales', fmt(gS)); setT('allProf', fmt(gP));
+    $('hFoot').innerHTML = `<tr><td>Totals</td>${pT.map(t => `<td>${fmt(t)}</td>`).join('')}<td>${fmt(rT)}</td><td>₦${fmt(gPr)}</td><td>₦${fmt(gM)}</td><td>₦${fmt(gS)}</td><td>₦${fmt(gE)}</td><td>₦${fmt(gP)}</td><td></td><td></td></tr>`;
+    calcCapStatus();
+  }
+
+  window.load = function(id) {
+    const r = h.find(x => x.id === id); if (!r) return;
+    $('date').value = r.dt.split(' ')[0]; $('time').value = r.dt.split(' ')[1] || '00:00';
+    $('float').value = r.fl; $('cash').value = r.ch; exp = r.exp || [];
+    P.forEach(p => {
+      const it = r.items.find(x => x.id === p.id) || { q: 0, r: 0 }, inp = document.querySelector(`input[data-id="${p.id}"]`);
+      if (inp) { inp.value = it.q + it.r; inp.parentElement.querySelector('.rIn').value = it.r; }
+    });
+    editId = r.id; $('saveBtn').innerText = 'Update Cloud'; $('cancelBtn').classList.remove('hidden'); $('inputCard').classList.add('border-blue-500');
+    renExp(); calc(); window.scrollTo(0, 0);
+  }
+
+  window.delRec = async function(id) {
+      if(confirm("Delete this record permanently?")) {
+          const r = h.find(x => x.id === id);
+          if(r) {
+             await deleteDoc(doc(db, "records", r.fid));
+             toast('Deleted', 'e');
+          }
+      }
+  }
+
+  window.editMode = function(on) {
+    editId = null; $('saveBtn').innerText = 'Save'; $('cancelBtn').classList.add('hidden'); $('inputCard').classList.remove('border-blue-500');
+    document.querySelectorAll('input').forEach(i => { if (!['pCap', 'mCap'].includes(i.id)) i.value = '' });
+    exp = []; renExp(); setNow(); calc();
+  }
+
+  window.saveCap = async function() {
+    const p = val('pCap'), m = val('mCap');
+    await setDoc(doc(db, "settings", "capital"), { p, m });
+  }
+  
+  function calcCapStatus() {
+      const p = val('pCap'), m = val('mCap'), tot = p + m;
+      const prof = h.reduce((s, r) => s + (r.prof || 0), 0);
+      const rem = Math.max(0, tot - prof);
+      setT('cumProfit', fmt(prof)); setT('totCap', fmt(tot)); setT('remCap', fmt(rem) + (rem === 0 && tot > 0 ? ' (Done!)' : ''));
+  }
+
+  window.genPDF = function() {
+    const t = $('repType').value, sorted = h.sort((a, b) => new Date(a.iso) - new Date(b.iso));
+    let sub = sorted, name = "Report";
+    if (t === 'monthly') { const [y, m] = $('mPick').value.split('-'); sub = sorted.filter(r => r.iso.startsWith(`${y}-${m}`)); name += `_${y}-${m}`; }
+    else if (t === 'yearly') { sub = sorted.filter(r => r.iso.startsWith($('yPick').value)); name += `_${$('yPick').value}`; }
+    else { const s = new Date($('sDate').value), e = new Date($('eDate').value); e.setHours(23, 59, 59); sub = sorted.filter(r => { const d = new Date(r.iso); return d >= s && d <= e }); }
+
+    if (!sub.length) return alert('No records');
+    const { jsPDF } = window.jspdf, doc = new jsPDF('l'), N = '₦', head = [['Date', ...P.map(p => p.n), 'Rem', `Prod(${N})`, `Misc(${N})`, `Tot(${N})`, `Exp(${N})`, `Prof(${N})`, `Var(${N})`]];
+    let gS = 0, gE = 0, gP = 0;
+    const body = sub.map(r => {
+      gS += r.tot; gE += (r.exp || []).reduce((s, x) => s + x.a, 0); gP += r.prof;
+      return [r.dt.split(' ')[0], ...P.map(p => (r.items.find(x => x.id === p.id) || { q: 0 }).q || '-'), r.items.reduce((s, x) => s + x.r, 0), fmt(r.prod), fmt(r.misc), fmt(r.tot), fmt((r.exp || []).reduce((s, x) => s + x.a, 0)), fmt(r.prof), fmt(r.var)];
+    });
+    doc.autoTable({ head, body, foot: [['TOTALS', ...P.map(() => ''), '', '', '', fmt(gS), fmt(gE), fmt(gP), '']], startY: 20, theme: 'striped', styles: { fontSize: 8 } });
+    doc.text(`Starbite ${t.toUpperCase()} Report`, 14, 15); doc.save(`Starbite_${name}.pdf`);
+  }
+
+  window.expCSV = function() {
+    if (!h.length) return alert('No Data');
+    const csv = [['Date', ...P.map(p => p.n), 'Remains', 'Prod', 'Misc', 'Total', 'Exp', 'Profit', 'Var', 'InHand', 'Float']]
+      .concat(h.map(r => [r.dt, ...P.map(p => (r.items.find(x => x.id === p.id) || { q: 0 }).q), r.items.reduce((s, x) => s + x.r, 0), r.prod, r.misc, r.tot, (r.exp || []).reduce((s, x) => s + x.a, 0), r.prof, r.var, r.ch, r.fl]))
+      .map(r => r.join(',')).join('\n');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = 'starbite_cloud_data.csv'; a.click();
+  }
+
+  window.wipe = async function() { 
+    if (confirm('Delete ALL history from Cloud? Cannot undo.')) { 
+       const snap = await getDocs(collection(db, "records"));
+       snap.forEach(d => deleteDoc(doc(db, "records", d.id)));
+       toast('Cloud Cleared', 'e');
+    } 
+  }
+  function toast(m, t = 's') { const el = $('toast'); el.className = t + ' show'; el.innerText = m; setTimeout(() => el.classList.remove('show'), 3000); }
+  
+  window.$ = $;
+  init();
+</script>
+</body>
+</html>
+    </textarea>
+
+    <textarea id="code3" style="display:none;">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>STARBITE Pro: Business Dashboard</title>
+  <style>
     :root { --primary: #007bff; --success: #28a745; --danger: #dc3545; --warning: #ffc107; --bg: #f4f7f6; --dark: #343a40; --purple: #6f42c1; }
+    body { font-family: 'Segoe UI', sans-serif; margin: 15px; background-color: var(--bg); padding-bottom: 70px; }
     .dash-row { display: flex; gap: 10px; margin-bottom: 15px; }
     .dash-card { flex: 1; background: white; padding: 10px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: center; border-bottom: 3px solid transparent; }
     .dash-card h4 { margin: 0; font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
@@ -45,10 +1137,18 @@
     .d-blue { border-bottom-color: var(--primary); } .d-blue .dash-val { color: var(--primary); }
     .d-purp { border-bottom-color: var(--purple); } .d-purp .dash-val { color: var(--purple); }
     .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 15px; }
+    h2, h3 { color: var(--primary); margin: 0 0 10px 0; }
+    input, button, select { padding: 12px; margin: 5px 0; border: 1px solid #ccc; border-radius: 8px; width: 100%; box-sizing: border-box; font-size: 16px; }
+    button { cursor: pointer; background-color: var(--primary); color: white; border: none; font-weight: bold; transition: 0.2s; }
+    button:active { transform: scale(0.98); }
+    .btn-print { background-color: var(--dark); color: #fff; }
+    .btn-edit { background-color: var(--warning); color: #000; }
+    .btn-shelf { background-color: #6c757d; color: #fff; }
+    .btn-wa { background-color: #25D366; color: white; font-weight: 900; }
+    .row { display: flex; gap: 8px; align-items: center; }
     .device-box { flex: 1; text-align: center; background: #f8f9fa; padding: 5px; border-radius: 8px; border: 1px solid #eee; }
     .device-box label { font-size: 11px; display: block; color: #666; }
     .ticket { border-left: 6px solid var(--primary); padding: 12px; margin-bottom: 12px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); position: relative; }
-    .ticket.shelf-mode { border-left-color: #10b981; background: #ecfdf5; }
     .timer-area { background: #e3f2fd; padding: 10px; border-radius: 6px; margin: 10px 0; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
     .time-val { font-family: 'Courier New', monospace; font-size: 18px; font-weight: bold; color: #333; }
     .time-val.danger { color: #d32f2f; font-weight: 900; font-size: 20px; animation: pulse 2s infinite; }
@@ -58,1477 +1158,460 @@
     .on { background: var(--success); } .off { background: var(--danger); }
     .modal { display: none; position: fixed; z-index: 200; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; }
     .modal-content { background: #fff; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; max-height: 90vh; overflow-y: auto; }
-    #receiptPreview { font-family: 'Courier New', monospace; text-align: center; border: 1px dashed #333; padding: 10px; margin-bottom: 15px; background: #fff; color: black; }
+    
+    /* --- SECURE RECEIPT STYLES --- */
+    #receiptPreview { 
+        font-family: 'Courier New', monospace; 
+        text-align: center; 
+        border: 4px double #333; 
+        padding: 15px; 
+        margin-bottom: 15px; 
+        background: #fff; 
+        color: black; 
+        position: relative;
+        overflow: hidden;
+    }
+    #receiptPreview::before {
+        content: "VOID IF ALTERED";
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg);
+        font-size: 24px; color: rgba(0,0,0,0.05); white-space: nowrap; pointer-events: none;
+    }
+
     .r-code-box { border: 3px solid #000; padding: 5px; margin: 10px auto; display: inline-block; }
     .r-code-text { font-size: 28px; font-weight: 900; letter-spacing: 2px; }
     .r-cut-line { border-top: 2px dashed #000; margin: 20px 0 10px 0; position: relative; }
     .r-cut-line::after { content: '✂️ DEVICE LABELS ✂️'; position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: #fff; padding: 0 5px; font-size: 10px; }
     .sticker-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; }
     .sticker { background: #000; color: #fff; padding: 4px 8px; font-weight: bold; font-size: 18px; }
-    
-    /* PARTIAL MODAL STYLES */
-    .qty-ctrl { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; background: #f3f4f6; padding: 5px; border-radius: 8px; }
-    .qty-btn { width: 30px; height: 30px; background: white; border: 1px solid #ccc; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; }
-    .qty-display { font-weight: bold; font-size: 18px; width: 40px; text-align: center; }
-    
-    /* Report Styles */
-    .rep-btn { padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; cursor: pointer; border: 1px solid #ddd; }
-    .rep-btn.active { background: #007bff; color: white; border-color: #007bff; }
+    .secure-hash { font-size: 9px; color: #555; border-top: 1px solid #ccc; margin-top: 5px; padding-top: 2px; letter-spacing: 1px; }
 
-    @media print {
-      body * { visibility: hidden; }
-      #printArea, #printArea * { visibility: visible; }
-      #printArea { position: absolute; left: 0; top: 0; width: 58mm; margin: 0; padding: 0; font-size: 12px; }
-      .modal { position: absolute; left: 0; top: 0; width: 100%; height: auto; background: white; display: block !important; }
-      .modal-content { width: 100%; margin: 0; padding: 0; box-shadow: none; border: none; }
-      button { display: none !important; }
-    }
+    .pill-paid { background: #d4edda; color: #155724; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+    .pill-owe { background: #f8d7da; color: #721c24; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+    @media print { body * { visibility: hidden; } #printArea, #printArea * { visibility: visible; } #printArea { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; } .modal { position: absolute; left: 0; top: 0; width: 100%; height: auto; background: white; display: block !important; } .modal-content { width: 100%; margin: 0; padding: 0; box-shadow: none; } button, h3 { display: none !important; } }
   </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
+<body>
 
-  <div id="securityOverlay">
-    <div class="text-3xl font-bold mb-2">🔒 STARBITE</div>
-    <div class="text-sm text-blue-200 mb-8">System Locked</div>
-    <div class="flex gap-2 mb-4" id="pinDots">
-        <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+  <h2>⚡️ STARBITE Cloud Pro</h2>
+
+  <div class="dash-row">
+    <div class="dash-card d-green"><h4>Cash Today</h4><div class="dash-val" id="valCash">₦0</div></div>
+    <div class="dash-card d-blue"><h4>Pending</h4><div class="dash-val" id="valPending">₦0</div></div>
+    <div class="dash-card d-purp"><h4>Devices</h4><div class="dash-val" id="valCount">0</div></div>
+  </div>
+
+  <div class="card">
+    <h3 id="formAction">New Customer</h3>
+    <div style="display:flex; gap:5px;">
+        <input type="text" id="custName" placeholder="Customer Name *" style="flex:2">
+        <input type="tel" id="custPhone" placeholder="Phone (Optional)" style="flex:1">
     </div>
-    <div class="text-red-400 font-bold h-6 mb-2" id="pinError"></div>
-    <div class="keypad">
-        <div class="key" onclick="pressPin(1)">1</div><div class="key" onclick="pressPin(2)">2</div><div class="key" onclick="pressPin(3)">3</div>
-        <div class="key" onclick="pressPin(4)">4</div><div class="key" onclick="pressPin(5)">5</div><div class="key" onclick="pressPin(6)">6</div>
-        <div class="key" onclick="pressPin(7)">7</div><div class="key" onclick="pressPin(8)">8</div><div class="key" onclick="pressPin(9)">9</div>
-        <div class="key key-del"></div><div class="key" onclick="pressPin(0)">0</div><div class="key key-del" onclick="clearPin()">⌫</div>
+    
+    <div class="row">
+        <select id="payStatus" style="flex:1">
+            <option value="Later">Pay Later ⏳</option>
+            <option value="Now">Paid Now 💰</option>
+        </select>
     </div>
+
+    <div class="row">
+      <div class="device-box"><label>PHONES</label><input type="number" id="phCount" value="1" min="0"></div>
+      <div class="device-box"><label>P-BANKS</label><input type="number" id="pbCount" value="0" min="0"></div>
+      <div class="device-box"><label>CHARGERS</label><input type="number" id="chCount" value="0" min="0"></div>
+    </div>
+    <input type="number" id="price" value="200" placeholder="Price">
+    <button onclick="saveTicket()" id="saveBtn">✅ START CHARGING</button>
+    <button id="cancelEditBtn" style="display:none; background:#666;" onclick="cancelEdit()">Cancel Edit</button>
   </div>
 
-  <nav class="bg-blue-600 p-2 text-white sticky top-0 z-[1000] shadow-md flex justify-around">
-    <button onclick="openTab('debtorTab')" class="nav-btn px-4 py-2 rounded-lg font-bold active" id="btn-debtorTab">💰 Debtors</button>
-    <button onclick="openTab('prodTab')" class="nav-btn px-4 py-2 rounded-lg font-bold" id="btn-prodTab">🍞 Production</button>
-    <button onclick="openTab('chargeTab')" class="nav-btn px-4 py-2 rounded-lg font-bold" id="btn-chargeTab">⚡ Charging</button>
-  </nav>
+  <h3>Charging Now (<span id="countActive">0</span>)</h3>
+  <div id="listActive">Loading...</div>
 
-  <div id="debtorTab" class="tab-content active p-4">
-    <div class="max-w-6xl mx-auto">
-        <h1 class="text-3xl font-extrabold mb-6 text-center text-blue-700">💰 Cloud Credit Tracker</h1>
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div class="bg-red-100 border border-red-400 text-red-800 px-4 py-2 rounded text-center font-semibold">Remaining: ₦<span id="totalRemainingOwed">0.00</span></div>
-          <div class="bg-green-100 border border-green-400 text-green-800 px-4 py-2 rounded text-center font-semibold">Collected: ₦<span id="totalPaid">0.00</span></div>
-          <div class="bg-blue-100 border border-blue-400 text-blue-800 px-4 py-2 rounded text-center flex justify-center items-center">
-            Reminder Days: <input id="reminderDays" type="number" min="1" class="w-16 text-center border rounded ml-2" onchange="cfg()">
-          </div>
-          <div id="reminderBox" class="bg-red-500 text-white px-4 py-2 rounded text-center cursor-pointer font-bold hidden" onclick="document.getElementById('filterStatus').value='overdue';render1()">
-            ⚠️ <span id="reminderCount">0</span> Overdue!
-          </div>
-        </div>
-    
-        <div class="bg-white shadow-lg rounded-xl p-6 mb-6">
-          <h2 class="text-xl font-semibold mb-3">Log New Credit Sale</h2>
-          <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
-            <input id="cName" placeholder="Customer Name" class="border rounded p-2 col-span-2">
-            <input id="cPhone" type="tel" placeholder="Phone" class="border rounded p-2">
-            <input id="cProd" placeholder="Product" class="border rounded p-2">
-            <input id="cAmt" type="number" step="0.01" placeholder="Amount (₦)" class="border rounded p-2">
-            <input id="cDate" type="date" class="border rounded p-2">
-            <button id="addBtn1" class="bg-blue-600 hover:bg-blue-700 text-white rounded p-2">Add Record</button>
-          </div>
-        </div>
-    
-        <div class="bg-white shadow rounded-lg p-4 mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <input id="search1" placeholder="Search..." class="border rounded p-2" oninput="render1()">
-          <select id="filterStatus" class="border rounded p-2" onchange="render1()">
-            <option value="all">All Statuses</option><option value="full">Paid in Full</option>
-            <option value="partial">Partial Payment</option><option value="unpaid">Unpaid</option><option value="overdue">Overdue ONLY</option>
-          </select>
-          <select id="sortOrder1" class="border rounded p-2" onchange="render1()">
-            <option value="date_desc">Date (Newest)</option><option value="date_asc">Date (Oldest)</option>
-            <option value="amount_desc">Amount (High)</option><option value="amount_asc">Amount (Low)</option>
-          </select>
-        </div>
-    
-        <div class="bg-white shadow-lg rounded-xl p-4 overflow-x-auto">
-          <table class="w-full border-collapse text-left">
-            <thead><tr class="bg-gray-200"><th class="p-2 border">Name</th><th class="p-2 border">Phone</th><th class="p-2 border">Orig (₦)</th><th class="p-2 border">Paid (₦)</th><th class="p-2 border text-red-700">Owed (₦)</th><th class="p-2 border">Date</th><th class="p-2 border">Status</th><th class="p-2 border">Actions</th></tr></thead>
-            <tbody id="recordsTable1"></tbody>
-          </table>
-          <p id="noResults1" class="text-center text-gray-500 hidden mt-4">Loading data or no records found...</p>
-        </div>
-    
-        <h2 class="text-xl font-semibold mt-8 mb-3">Trash</h2>
-        <div class="bg-white shadow rounded-lg p-4 overflow-x-auto">
-          <table class="w-full border-collapse text-left">
-            <thead><tr class="bg-gray-200"><th class="p-2 border">Name</th><th class="p-2 border">Product</th><th class="p-2 border">Amount</th><th class="p-2 border">Deleted</th><th class="p-2 border">Actions</th></tr></thead>
-            <tbody id="deletedTable1"></tbody>
-          </table>
-          <p id="noDeleted1" class="text-center text-gray-500 hidden mt-2">Empty Trash</p>
-        </div>
+  <details class="card">
+    <summary>📦 Customer History & Search</summary>
+    <div style="padding-top:10px;">
+        <input type="text" id="histSearch" placeholder="Search Name or #Code..." oninput="render()">
+        <div id="listHistory" style="margin-top:10px;"></div>
+    </div>
+  </details>
+
+  <div id="status" class="off">Offline</div>
+
+  <div id="modalPrint" class="modal">
+    <div class="modal-content" id="printArea">
+      <div id="receiptPreview"></div>
+      <div style="display:flex; gap:10px; margin-top:5px;">
+          <button class="btn-print" style="flex:1;" onclick="window.print()">🖨️ PRINT</button>
+          <button class="btn-wa" style="flex:2;" onclick="sendWAText()">📱 SEND TEXT VIA WA</button>
       </div>
-    
-      <div id="payModal" class="fixed inset-0 modal-overlay z-50 flex items-center justify-center hidden">
-        <div class="bg-white rounded-lg p-6 w-96 shadow-2xl">
-          <h3 class="text-xl font-bold mb-4">Log Payment</h3>
-          <input type="hidden" id="payId"><label id="payOwed" class="block text-gray-600 font-bold mb-2"></label>
-          <input id="payAmt" type="number" step="0.01" class="border rounded p-2 w-full mb-2" placeholder="Amount">
-          <input id="payDate" type="date" class="border rounded p-2 w-full mb-4">
-          <div class="flex justify-end gap-2"><button id="savePayBtn" class="bg-green-500 text-white px-4 py-2 rounded">Save</button><button onclick="toggle('payModal',0)" class="bg-gray-300 px-4 py-2 rounded">Cancel</button></div>
-        </div>
-      </div>
-      
-      <div id="histModal" class="fixed inset-0 modal-overlay z-50 flex items-center justify-center hidden">
-        <div class="bg-white rounded-lg p-6 w-[500px] shadow-2xl">
-          <div class="flex justify-between items-center mb-4">
-             <h3 class="text-xl font-bold">History: <span id="histName" class="text-blue-600"></span></h3>
-             <button onclick="genStatementPDF()" class="bg-indigo-600 text-white px-3 py-1 rounded text-sm">📄 Stmt</button>
-          </div>
-          <input type="hidden" id="histCurId">
-          <div class="max-h-64 overflow-y-auto"><table class="w-full text-sm"><thead class="bg-gray-100"><tr><th class="p-2">Date</th><th class="p-2 text-right">Amount</th><th class="p-2 text-center">Action</th></tr></thead><tbody id="histBody"></tbody></table></div>
-          <p class="text-right font-bold mt-2">Total: ₦<span id="histTotal">0.00</span></p>
-          <div class="flex justify-end mt-4"><button onclick="toggle('histModal',0)" class="bg-gray-300 px-4 py-2 rounded">Close</button></div>
-        </div>
-      </div>
-    
-      <div id="editModal" class="fixed inset-0 modal-overlay z-50 flex items-center justify-center hidden">
-        <div class="bg-white rounded-lg p-6 w-96 shadow-2xl">
-          <h3 class="text-xl font-bold mb-4">Edit Record</h3>
-          <input type="hidden" id="eId"><div class="space-y-3">
-            <input id="eName" class="border rounded p-2 w-full" placeholder="Name"><input id="ePhone" class="border rounded p-2 w-full" placeholder="Phone">
-            <input id="eProd" class="border rounded p-2 w-full" placeholder="Product"><input id="eAmt" type="number" class="border rounded p-2 w-full" placeholder="Amount">
-            <input id="eDate" type="date" class="border rounded p-2 w-full">
-          </div>
-          <div class="flex justify-end gap-2 mt-6"><button id="saveEditBtn" class="bg-green-500 text-white px-4 py-2 rounded">Save</button><button onclick="toggle('editModal',0)" class="bg-gray-300 px-4 py-2 rounded">Cancel</button></div>
-        </div>
-      </div>
-  </div>
-
-  <div id="prodTab" class="tab-content p-4">
-    <div class="max-w-5xl mx-auto bg-white shadow-lg rounded-2xl p-6">
-        <div class="flex justify-between items-center mb-4">
-            <h1 class="text-2xl font-bold">STARBITE CLOUD RECORDER</h1>
-            <button onclick="openPriceMgr()" class="bg-gray-800 text-white px-3 py-1 rounded shadow hover:bg-gray-700 text-sm">⚙️ Prices</button>
-        </div>
-        
-        <div class="bg-indigo-100 rounded-xl p-3 mb-4 border-2 border-indigo-500">
-            <div class="flex justify-between items-center mb-1">
-                <h3 class="font-bold text-indigo-800">1. Capital & Recovery (Synced)</h3>
-                <button onclick="unlockCap()" id="btnCapLock" class="text-xs bg-indigo-200 text-indigo-800 px-2 py-1 rounded border border-indigo-300 font-bold hover:bg-indigo-300">🔒 Locked</button>
-            </div>
-            
-            <div class="grid grid-cols-2 gap-3 text-xs mb-2">
-                <div class="bg-white p-2 rounded">
-                    <label>Production Capital (₦)</label>
-                    <input id="pCap" type="number" class="w-full border p-1 rounded bg-gray-200 text-gray-500 cursor-not-allowed" disabled oninput="saveCap()">
-                </div>
-                <div class="bg-white p-2 rounded">
-                    <label>Misc/Drinks Capital (₦)</label>
-                    <input id="mCap" type="number" class="w-full border p-1 rounded bg-gray-200 text-gray-500 cursor-not-allowed" disabled oninput="saveCap()">
-                </div>
-            </div>
-            <div class="text-sm border-t border-indigo-300 pt-2 font-semibold">
-                Profit: ₦<span id="cumProfit" class="text-green-600">0</span> | Total Cap: ₦<span id="totCap">0</span> | <span class="text-red-600">Rem: ₦<span id="remCap">0</span></span>
-            </div>
-        </div>
-    
-        <div id="inputCard" class="bg-gray-100 rounded-xl p-3 mb-3 border-2 border-transparent" oninput="calc2()">
-          <div class="flex gap-2 mb-2 text-sm"><input id="date2" type="date" class="p-1 rounded"><input id="time2" type="time" class="p-1 rounded"></div>
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs" id="prodGrid"></div>
-          <div class="font-semibold mt-2 text-sm">Prod. Sales: ₦<span id="prodTot">0</span></div>
-        </div>
-    
-        <div class="bg-yellow-100 rounded-xl p-3 mb-3" oninput="calc2()">
-          <h3 class="font-semibold mb-2">2. Cash & Deduction</h3>
-          <div class="grid grid-cols-2 gap-2 text-xs mb-2">
-            <div><label>Start Float (₦)</label><input id="float2" type="number" class="w-full p-1 rounded border"></div>
-            <div><label> Total money counted (₦)</label><input id="cash2" type="number" class="w-full p-1 rounded border"></div>
-          </div>
-          
-          <div class="grid grid-cols-3 gap-2 text-sm font-bold bg-white p-2 rounded border text-center">
-            <div>
-                <label class="block text-xs text-gray-500 mb-1">Misc Sales (₦)</label>
-                <input id="miscSale" type="number" class="w-full border rounded p-1 text-center" value="0" placeholder="0">
-            </div>
-            <div>
-                <label class="block text-xs text-gray-500 mb-1">Total Sales</label>
-                <div class="mt-1">₦<span id="dayTot">0</span></div>
-            </div>
-            <div>
-                <label class="block text-xs text-gray-500 mb-1">Variance</label>
-                <div class="mt-1">₦<span id="var2">0</span></div>
-            </div>
-          </div>
-        </div>
-    
-        <div class="bg-gray-100 rounded-xl p-3 mb-3">
-          <h3 class="font-semibold">3. Expenses</h3>
-          <div class="flex gap-2 text-sm my-2 items-center">
-            <select id="expCat" class="p-1 rounded border text-xs w-1/3 h-8">
-                <option value="General">General</option>
-                <option value="Ingredients">Ingredients</option>
-                <option value="Fuel">Fuel/Trans</option>
-                <option value="Staff">Staff</option>
-                <option value="Repairs">Repairs</option>
-            </select>
-            <input id="expDesc" placeholder="Item" class="p-1 rounded border w-full h-8">
-            <input id="expAmt" type="number" placeholder="Amt" class="p-1 rounded border w-1/4 h-8">
-            <button onclick="addExp()" id="expBtn" class="bg-red-600 text-white px-3 rounded h-8">Add</button>
-          </div>
-          <div class="text-sm font-semibold">Total Exp: ₦<span id="expTot">0</span></div>
-          <ul id="expList" class="mt-1"></ul>
-        </div>
-    
-        <div class="flex flex-wrap gap-2 text-xs items-center">
-          <button onclick="save2()" id="saveBtn2" class="bg-blue-600 text-white px-3 py-1 rounded shadow">Save</button>
-          <button onclick="editMode2(false)" id="cancelBtn2" class="hidden bg-gray-500 text-white px-3 py-1 rounded">Cancel</button>
-          <button onclick="document.getElementById('hist2').classList.toggle('hidden')" class="bg-green-600 text-white px-3 py-1 rounded">History</button>
-          <button onclick="expCSV()" class="bg-yellow-500 text-white px-3 py-1 rounded">CSV</button>
-          <button onclick="wipe2()" class="bg-red-500 text-white px-3 py-1 rounded">Clear All</button>
-          <div class="ml-auto flex gap-1">
-            <select id="repType" class="p-1 border rounded" onchange="uiDate2()">
-              <option value="monthly">Monthly</option><option value="yearly">Yearly</option><option value="range">Range</option>
-            </select>
-            <div id="dtPick" class="flex gap-1"></div>
-            <button onclick="genPDF()" class="bg-indigo-600 text-white px-2 rounded">PDF</button>
-          </div>
-        </div>
-    
-        <div id="hist2" class="hidden bg-white rounded-xl p-3 border mt-4 overflow-auto">
-          <div class="flex justify-around bg-gray-100 p-2 text-sm font-bold mb-2">
-              <span>Sales: ₦<span id="allSales2">0</span></span><span>Profit: ₦<span id="allProf2">0</span></span>
-          </div>
-          <table class="w-full text-left text-xs table-auto"><thead class="bg-gray-100"><tr id="hHead2"></tr></thead><tbody id="hBody2"></tbody><tfoot id="hFoot2" class="bg-gray-100 font-bold"></tfoot></table>
-        </div>
-      </div>
-      <div id="toast"></div>
-
-      <div id="priceModal" class="modal">
-          <div class="modal-content">
-              <div class="flex justify-between mb-4">
-                  <h3 class="font-bold text-lg">⚙️ Manage Product Prices</h3>
-                  <button onclick="toggle('priceModal', 0)" class="text-red-500 font-bold">X</button>
-              </div>
-              <div class="mb-4 p-2 bg-gray-100 rounded">
-                  <h4 class="text-xs font-bold text-gray-500 mb-1">Add / Update Product</h4>
-                  <input type="hidden" id="prodEditId">
-                  <input id="pMgrName" placeholder="Product Name (e.g. Meat Pie)" class="w-full mb-1 border p-1 rounded text-sm">
-                  <input id="pMgrPrice" type="number" placeholder="Price (N)" class="w-full mb-2 border p-1 rounded text-sm">
-                  <div class="flex gap-2">
-                      <button onclick="saveProduct()" class="bg-blue-600 text-white px-3 py-1 rounded text-sm w-full">Save Product</button>
-                      <button onclick="resetProdForm()" class="bg-gray-400 text-white px-2 py-1 rounded text-sm">Cancel</button>
-                  </div>
-              </div>
-              <h4 class="font-bold text-sm mb-2">Current Menu</h4>
-              <ul id="priceList" class="text-sm space-y-1 max-h-48 overflow-y-auto mb-4"></ul>
-              
-              <button onclick="loadDefaultMenu()" id="btnLoadDef" class="w-full bg-indigo-100 text-indigo-800 text-xs py-2 rounded mt-2 hidden">⚠️ Load Default Menu</button>
-          </div>
-      </div>
-
-  </div>
-
-  <div id="chargeTab" class="tab-content p-4">
-    <div class="max-w-4xl mx-auto">
-        <h2>⚡️ STARBITE Cloud Pro</h2>
-      
-        <div class="dash-row">
-          <div class="dash-card d-green">
-            <h4>Cash Today</h4>
-            <div class="dash-val" id="valCash">₦0</div>
-          </div>
-          <div class="dash-card d-blue">
-            <h4>Pending</h4>
-            <div class="dash-val" id="valPending">₦0</div>
-          </div>
-          <div class="dash-card d-purp">
-            <h4>Devices</h4>
-            <div class="dash-val" id="valCount">0</div>
-          </div>
-        </div>
-
-        <div class="flex justify-end mb-2">
-           <button onclick="openReportModal()" class="bg-indigo-600 text-white font-bold py-1 px-3 rounded shadow hover:bg-indigo-700 text-sm flex items-center gap-1">
-             📊 View Reports
-           </button>
-        </div>
-        
-        <div class="bg-white p-4 rounded-xl shadow mb-4">
-            <h3 class="text-sm font-bold text-gray-500 mb-2">Weekly Revenue Chart</h3>
-            <canvas id="revChart" style="max-height: 200px; width: 100%;"></canvas>
-        </div>
-      
-        <div class="card" style="background: #e0f2fe; border: 2px solid #0284c7;">
-          <h3 class="text-blue-900 font-bold mb-2">🚀 Quick Collect by Code</h3>
-          <div class="flex gap-2">
-            <input type="number" id="quickCode" placeholder="Enter Ticket Code (e.g. 1234)" class="w-full border p-2 rounded font-bold text-lg" onkeydown="if(event.key==='Enter') runQuickCollect()">
-            <button onclick="runQuickCollect()" class="bg-blue-700 text-white px-6 py-2 rounded font-bold hover:bg-blue-800">COLLECT</button>
-          </div>
-        </div>
-
-        <div class="card">
-          <h3 id="formAction">New Customer</h3>
-          <input type="text" id="custName" placeholder="Customer Name *">
-          
-          <div class="row flex gap-2">
-            <div class="device-box"><label>PHONES</label><input type="number" id="phCount" value="1" min="0" class="w-full text-center border p-1 rounded"></div>
-            <div class="device-box"><label>P-BANKS</label><input type="number" id="pbCount" value="0" min="0" class="w-full text-center border p-1 rounded"></div>
-            <div class="device-box"><label>CHARGERS</label><input type="number" id="chCount" value="0" min="0" class="w-full text-center border p-1 rounded"></div>
-          </div>
-
-          <div class="flex gap-2 my-2">
-             <div class="w-full">
-                <label class="text-xs font-bold text-gray-500">Price (₦)</label>
-                <input type="number" id="price3" value="200" class="w-full border p-2 rounded">
-             </div>
-             <input type="hidden" id="socketNum">
-          </div>
-          
-          <div class="flex gap-4 mb-3 border p-2 rounded bg-gray-50">
-             <span class="text-sm font-bold text-gray-600">Payment Status:</span>
-             <label class="flex items-center cursor-pointer">
-                <input type="radio" name="payStatus" value="paid" checked class="mr-1"> 
-                <span class="text-sm text-green-700 font-bold">Paid Now</span>
-             </label>
-             <label class="flex items-center cursor-pointer">
-                <input type="radio" name="payStatus" value="later" class="mr-1"> 
-                <span class="text-sm text-red-600 font-bold">Pay Later</span>
-             </label>
-          </div>
-
-          <button onclick="saveTicket()" id="saveBtn3" class="w-full bg-blue-600 text-white font-bold p-3 rounded">✅ START CHARGING</button>
-          <button id="cancelEditBtn3" style="display:none; background:#666;" onclick="cancelEdit3()" class="w-full text-white p-3 rounded mt-2">Cancel Edit</button>
-        </div>
-      
-        <h3>Active Devices (<span id="countActive">0</span>)</h3>
-        <div id="listActive">Loading...</div>
-      
-        <details class="card mt-4">
-          <summary class="font-bold cursor-pointer">📦 Customer History & Search</summary>
-          <div style="padding-top:10px;">
-              <input type="text" id="histSearch" placeholder="Search Name or #Code..." oninput="render3()" class="w-full border p-2 rounded">
-              <div id="listHistory" style="margin-top:10px;"></div>
-          </div>
-        </details>
-      
-        <div id="status" class="off">Offline</div>
-      
-        <div id="modalPrint" class="modal">
-          <div class="modal-content" id="printArea">
-            <div id="receiptPreview"></div>
-            <button class="bg-black text-white p-2 rounded w-full mb-2" onclick="window.print()">🖨️ PRINT NOW</button>
-            <button style="background:#666;" class="text-white p-2 rounded w-full" onclick="document.getElementById('modalPrint').style.display='none'">Close</button>
-          </div>
-        </div>
-
-        <div id="partialModal" class="modal">
-            <div class="modal-content" style="max-width:320px;">
-               <div class="flex justify-between items-center mb-4">
-                  <h3 class="font-bold text-lg text-blue-900">📦 Release Items</h3>
-                  <button onclick="document.getElementById('partialModal').style.display='none'" class="text-gray-500 font-bold">X</button>
-               </div>
-               
-               <input type="hidden" id="partId">
-               <div class="text-sm text-gray-500 mb-2 text-center">Select items customer is taking:</div>
-
-               <div class="qty-ctrl">
-                   <label class="text-sm font-bold">Phones:</label>
-                   <div class="flex items-center gap-2">
-                       <div class="qty-btn" onclick="adjPart('ph', -1)">-</div>
-                       <div class="qty-display" id="disp_ph">0</div>
-                       <div class="qty-btn" onclick="adjPart('ph', 1)">+</div>
-                   </div>
-               </div>
-               
-               <div class="qty-ctrl">
-                   <label class="text-sm font-bold">Powerbanks:</label>
-                   <div class="flex items-center gap-2">
-                       <div class="qty-btn" onclick="adjPart('pb', -1)">-</div>
-                       <div class="qty-display" id="disp_pb">0</div>
-                       <div class="qty-btn" onclick="adjPart('pb', 1)">+</div>
-                   </div>
-               </div>
-               
-               <div class="qty-ctrl">
-                   <label class="text-sm font-bold">Chargers:</label>
-                   <div class="flex items-center gap-2">
-                       <div class="qty-btn" onclick="adjPart('ch', -1)">-</div>
-                       <div class="qty-display" id="disp_ch">0</div>
-                       <div class="qty-btn" onclick="adjPart('ch', 1)">+</div>
-                   </div>
-               </div>
-
-               <div class="bg-yellow-50 p-2 rounded text-xs text-center mb-3">
-                   Remaining: <span id="partRemMsg" class="font-bold">...</span>
-               </div>
-
-               <button onclick="confirmPartial()" id="btnConfirmPart" class="bg-blue-600 text-white w-full py-2 rounded font-bold">Confirm Release</button>
-            </div>
-        </div>
-
-        <div id="modalReport" class="modal">
-            <div class="modal-content" style="max-width:350px;">
-              <div class="flex justify-between items-center mb-4">
-                  <h3 class="text-lg font-bold">📊 Business Reports</h3>
-                  <button onclick="document.getElementById('modalReport').style.display='none'" class="text-gray-500 font-bold">X</button>
-              </div>
-              
-              <div class="flex justify-center gap-2 mb-4 bg-gray-100 p-2 rounded-full">
-                  <button onclick="calcReport('daily')" class="rep-btn active" id="btnRepD">Daily</button>
-                  <button onclick="calcReport('weekly')" class="rep-btn" id="btnRepW">Weekly</button>
-                  <button onclick="calcReport('monthly')" class="rep-btn" id="btnRepM">Monthly</button>
-              </div>
-
-              <div class="text-center bg-blue-50 p-4 rounded-xl border border-blue-200 mb-4">
-                  <div class="text-xs text-blue-600 font-bold uppercase mb-1">Total Revenue (Collected)</div>
-                  <div class="text-3xl font-black text-blue-800" id="repRevenue">₦0</div>
-              </div>
-
-              <div class="grid grid-cols-2 gap-2 mb-4">
-                 <div class="bg-purple-50 p-3 rounded-lg border border-purple-200 text-center">
-                    <div class="text-xs text-purple-600 font-bold">Total Devices</div>
-                    <div class="text-xl font-black text-purple-800" id="repTotalDev">0</div>
-                 </div>
-                 <div class="bg-green-50 p-3 rounded-lg border border-green-200 text-center">
-                     <div class="text-xs text-green-600 font-bold">Customers</div>
-                     <div class="text-xl font-black text-green-800" id="repCustCount">0</div>
-                 </div>
-              </div>
-
-              <div class="text-xs text-gray-500 bg-gray-100 p-2 rounded text-center">
-                  Breakdown: <span id="repBreakdown">Loading...</span>
-              </div>
-            </div>
-        </div>
+      <button style="background:#666; margin-top:5px; width:100%" onclick="document.getElementById('modalPrint').style.display='none'">Close</button>
     </div>
   </div>
 
   <script type="module">
-    // --- PIN LOGIC ---
-    const APP_PIN = "1988"; // STAFF PIN (To Unlock Screen)
-    const OWNER_PASS = "boss"; // OWNER PASSWORD (To Change Prices & Capital)
-    let currentPin = "";
-    
-    window.pressPin = (n) => {
-        if(currentPin.length < 4) {
-            currentPin += n;
-            updateDots();
-            if(currentPin.length === 4) checkPin();
-        }
-    };
-    
-    window.clearPin = () => { currentPin = ""; updateDots(); document.getElementById('pinError').innerText = ""; };
-    
-    function updateDots() {
-        const dots = document.querySelectorAll('.pin-dot');
-        dots.forEach((d, i) => {
-            if(i < currentPin.length) d.classList.add('filled');
-            else d.classList.remove('filled');
-        });
-    }
-    
-    function checkPin() {
-        if(currentPin === APP_PIN) {
-            document.getElementById('securityOverlay').style.display = 'none';
-        } else {
-            document.getElementById('pinError').innerText = "WRONG PIN";
-            setTimeout(clearPin, 500);
-        }
-    }
-
-    // --- FIREBASE IMPORTS ---
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, setDoc, getDocs, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-
-    // GLOBAL UTILS
-    const $ = id => document.getElementById(id);
-    window.openTab = (tabId) => {
-        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-        $(tabId).classList.add('active');
-        $('btn-' + tabId).classList.add('active');
-    };
-
-    // ==========================================
-    // APP 1 JS (DEBTOR)
-    // ==========================================
-    const config1 = {
-        apiKey: "AIzaSyCqmaIDptWNk8v5E5Sz5XKKSAmk6FNX6Yo",
-        authDomain: "credit-record-24f1e.firebaseapp.com",
-        projectId: "credit-record-24f1e",
-        storageBucket: "credit-record-24f1e.firebasestorage.app",
-        messagingSenderId: "181078991416",
-        appId: "1:181078991416:web:6e562cccc19767561b7ccd"
-    };
-    const app1 = initializeApp(config1, "debtorApp");
-    const db1 = getFirestore(app1);
-    const auth1 = getAuth(app1);
-    const recordsRef1 = collection(db1, "records");
-    const trashRef1 = collection(db1, "trash");
-
-    const cur = (n) => `₦${parseFloat(n).toFixed(2)}`;
-    const sum = (arr) => (arr || []).reduce((a, b) => a + b.amount, 0);
-
-    // --- TOGGLE FUNCTION ---
-    window.toggle = (id, show) => {
-        const el = document.getElementById(id);
-        if(!el) return;
-        
-        // 1. If it's a "Custom CSS" Modal (like Price Manager or Print)
-        if (el.classList.contains('modal')) {
-            el.style.display = (show === 1 || show === true) ? 'flex' : 'none';
-        } 
-        // 2. If it's a "Tailwind" Modal (like Debtors Edit/Pay)
-        else {
-            if (show === 1 || show === true) el.classList.remove('hidden');
-            else if (show === 0 || show === false) el.classList.add('hidden');
-            else el.classList.toggle('hidden');
-        }
-    };
+    import { getFirestore, collection, addDoc, updateDoc, doc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     
-    // --- NEW: OWNER AUTH FUNCTIONS ---
-    window.openPriceMgr = () => {
-        const p = prompt("🔐 OWNER PASSWORD:");
-        if(p === OWNER_PASS) {
-            toggle('priceModal', 1);
-        } else {
-            alert("⛔ ACCESS DENIED: Incorrect Password.");
-        }
-    };
+    // [[INJECT_CONFIG]]
 
-    window.unlockCap = () => {
-        const p = prompt("🔐 OWNER PASSWORD (To Edit Capital):");
-        if(p === OWNER_PASS) {
-            const pCap = $('pCap');
-            const mCap = $('mCap');
-            const btn = $('btnCapLock');
-            
-            pCap.disabled = false;
-            mCap.disabled = false;
-            
-            // Remove gray look
-            pCap.classList.remove('bg-gray-200', 'text-gray-500', 'cursor-not-allowed');
-            mCap.classList.remove('bg-gray-200', 'text-gray-500', 'cursor-not-allowed');
-            
-            btn.innerText = "🔓 Unlocked";
-            btn.classList.remove('bg-indigo-200', 'text-indigo-800');
-            btn.classList.add('bg-green-200', 'text-green-800');
-        } else {
-            alert("⛔ Wrong Password");
-        }
-    };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const col = collection(db, "tickets");
+    let ticketsData = [], editId = null;
+    let currentReceiptData = null; // Store for WA sharing
     
-    let recs = [], delRecs = [], rDays = parseInt(localStorage.getItem('rDays')) || 3;
-    $('reminderDays').value = rDays;
-
-    function initApp1() {
-        signInAnonymously(auth1).then(() => {
-            onSnapshot(recordsRef1, (snapshot) => {
-                recs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                render1();
-            });
-            onSnapshot(trashRef1, (snapshot) => {
-                delRecs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                render1();
-            });
-        }).catch(e => console.error("Auth1 Error:", e));
-    }
-
-    window.cfg = () => { rDays = $('reminderDays').value; localStorage.setItem('rDays', rDays); render1(); };
-    window.addRec = async () => {
-      const [name, phone, product, amtStr, date] = ['cName','cPhone','cProd','cAmt','cDate'].map(id => $(id).value.trim());
-      if(!name || !phone || !product || !amtStr || !date) return alert("Fill all fields");
-      await addDoc(recordsRef1, { name, phone, product, amount: parseFloat(amtStr), dateTime: new Date(date).toISOString(), payments: [] });
-      ['cName','cPhone','cProd','cAmt','cDate'].forEach(id=>$(id).value='');
-    };
-    $('addBtn1').onclick = window.addRec;
-
-    window.render1 = () => {
-      const term = $('search1').value.toLowerCase(), filter = $('filterStatus').value, sort = $('sortOrder1').value;
-      let totalOwed = 0, totalCol = 0, dueCount = 0;
-      const sorted = recs.filter(r => {
-        const pd = sum(r.payments), rem = r.amount - pd;
-        const stat = rem <= 0.01 ? 'full' : (pd > 0 ? 'partial' : 'unpaid');
-        const isDue = rem > 0.01 && (new Date() - new Date(r.dateTime))/(864e5) >= rDays;
-        if(isDue) dueCount++;
-        return (r.name.toLowerCase().includes(term) || r.phone.includes(term) || r.product.toLowerCase().includes(term)) &&
-               (filter === 'all' || filter === stat || (filter === 'overdue' && isDue));
-      }).sort((a,b) => {
-        const [k, o] = sort.split('_');
-        const vA = k==='date'? new Date(a.dateTime) : a.amount, vB = k==='date'? new Date(b.dateTime) : b.amount;
-        return o === 'asc' ? (vA>vB?1:-1) : (vA<vB?1:-1);
-      });
-      $('recordsTable1').innerHTML = sorted.map(r => {
-        const pd = sum(r.payments), rem = r.amount - pd;
-        const stat = rem <= 0.01 ? 'full' : (pd > 0 ? 'partial' : 'unpaid');
-        const isDue = rem > 0.01 && (new Date() - new Date(r.dateTime))/(864e5) >= rDays;
-        totalOwed += rem > 0 ? rem : 0; totalCol += pd;
-        const rowCls = stat==='full'?'s-full':(isDue?'s-over':(stat==='partial'?'s-part':'hover:bg-gray-50'));
-        
-        // WA Link
-        const waNum = r.phone.replace(/^0/, '234').replace(/\D/g,'');
-        const waMsg = encodeURIComponent(`Hello ${r.name}, this is a reminder regarding your balance of ${cur(rem)} at Starbite.`);
-        const waBtn = `<a href="https://wa.me/${waNum}?text=${waMsg}" target="_blank" class="bg-green-500 text-white px-2 py-1 rounded text-xs no-underline">📲</a>`;
-
-        const btns = stat === 'full' ? '<span class="text-gray-400 text-xs">Paid</span>' : 
-          `<div class="flex items-center gap-1 mb-1"><input id="qp-${r.id}" type="number" class="border p-1 w-16 text-xs" placeholder="Amt"><button onclick="quickPay('${r.id}')" class="bg-green-600 text-white px-2 rounded text-xs">Pay</button> ${waBtn}</div>
-           <button onclick="openPay('${r.id}')" class="text-xs text-blue-500 hover:underline">Log Past Date</button>`;
-        return `<tr class="${rowCls} border-b"><td class="p-2 border">${r.name}</td><td class="p-2 border">${r.phone}</td><td class="p-2 border">${cur(r.amount)}</td><td class="p-2 border text-green-700">${cur(pd)}</td><td class="p-2 border font-bold ${rem>0.01?'text-red-700':''}">${cur(rem)}</td><td class="p-2 border">${new Date(r.dateTime).toLocaleDateString('en-CA')}</td><td class="p-2 border capitalize">${stat}${isDue && stat!=='full'?' ⚠️':''}</td><td class="p-2 border space-y-1">${btns}<div class="flex gap-1 pt-1 border-t mt-1"><button onclick="hist1('${r.id}')" class="bg-blue-500 text-white px-2 py-1 rounded text-xs">Hist</button><button onclick="edit1('${r.id}')" class="bg-yellow-500 text-white px-2 py-1 rounded text-xs">Edit</button><button onclick="del1('${r.id}')" class="bg-red-500 text-white px-2 py-1 rounded text-xs">Del</button></div></td></tr>`;
-      }).join('');
-      $('noResults1').classList[sorted.length ? 'add' : 'remove']('hidden');
-      $('totalRemainingOwed').innerText = totalOwed.toFixed(2); $('totalPaid').innerText = totalCol.toFixed(2);
-      $('reminderBox').classList[dueCount ? 'remove' : 'add']('hidden'); $('reminderCount').innerText = dueCount;
-      $('deletedTable1').innerHTML = delRecs.map(r => `<tr><td class="p-2 border">${r.name}</td><td class="p-2 border">${r.product}</td><td class="p-2 border">${cur(r.amount)}</td><td class="p-2 border">${new Date(r.delAt).toLocaleDateString()}</td><td class="p-2 border gap-1 flex"><button onclick="restore1('${r.id}')" class="bg-blue-500 text-white px-2 py-1 rounded text-xs">Restore</button><button onclick="permDel1('${r.id}')" class="bg-red-700 text-white px-2 py-1 rounded text-xs">🗑️</button></td></tr>`).join('');
-      $('noDeleted1').classList[delRecs.length ? 'add' : 'remove']('hidden');
-    }
-
-    window.quickPay = async (id) => {
-      const v = parseFloat($(`qp-${id}`).value);
-      if(!v || v<=0) return alert("Invalid amount");
-      const r = recs.find(x => x.id === id);
-      await updateDoc(doc(db1, "records", id), { payments: [...r.payments, { id: String(Date.now()), amount: v, dateTime: new Date().toISOString() }] });
-    };
-    window.openPay = (id) => {
-      const r = recs.find(x => x.id === id);
-      const rem = r.amount - sum(r.payments);
-      $('payId').value = id; $('payAmt').value = rem.toFixed(2); $('payOwed').innerText = `Owed: ${cur(rem)}`;
-      $('payDate').valueAsDate = new Date(); toggle('payModal',1);
-    }
-    $('savePayBtn').onclick = async () => {
-      const id = $('payId').value, v = parseFloat($('payAmt').value), d = $('payDate').value;
-      const r = recs.find(x => x.id === id);
-      await updateDoc(doc(db1, "records", id), { payments: [...r.payments, { id: String(Date.now()), amount: v, dateTime: new Date(d).toISOString() }] });
-      toggle('payModal',0);
-    }
-    window.edit1 = (id) => {
-      const r = recs.find(x=>x.id===id);
-      $('eId').value=r.id; $('eName').value=r.name; $('ePhone').value=r.phone; $('eProd').value=r.product; $('eAmt').value=r.amount; $('eDate').value=r.dateTime.split('T')[0];
-      toggle('editModal',1);
-    }
-    $('saveEditBtn').onclick = async () => {
-        const id = $('eId').value;
-        await updateDoc(doc(db1, "records", id), { name: $('eName').value, phone: $('ePhone').value, product: $('eProd').value, amount: parseFloat($('eAmt').value), dateTime: new Date($('eDate').value).toISOString() });
-        toggle('editModal',0);
-    }
-    window.del1 = async (id) => {
-        if(!confirm("Delete?")) return;
-        const r = recs.find(x => x.id === id);
-        await setDoc(doc(db1, "trash", id), { ...r, delAt: new Date().toISOString() });
-        await deleteDoc(doc(db1, "records", id));
-    }
-    window.restore1 = async (id) => {
-        const r = delRecs.find(x => x.id === id);
-        const { delAt, ...rest } = r;
-        await setDoc(doc(db1, "records", id), rest);
-        await deleteDoc(doc(db1, "trash", id));
-    }
-    window.permDel1 = async (id) => { if(confirm("Permanent Delete?")) await deleteDoc(doc(db1, "trash", id)); }
-    window.hist1 = (id) => {
-        const r = recs.find(x=>x.id===id);
-        $('histCurId').value = id;
-        $('histName').innerText = r.name; $('histTotal').innerText = sum(r.payments).toFixed(2);
-        $('histBody').innerHTML = (r.payments || []).sort((a,b)=>new Date(b.dateTime)-new Date(a.dateTime)).map(p => `<tr class="border-b"><td class="p-2">${new Date(p.dateTime).toLocaleDateString()}</td><td class="p-2 text-right">${cur(p.amount)}</td><td class="p-2 text-center text-gray-400 text-xs">(ReadOnly)</td></tr>`).join('');
-        toggle('histModal',1);
-    }
+    onSnapshot(query(col, orderBy("ts", "desc")), (snap) => { ticketsData = snap.docs.map(d => ({ ...d.data(), id: d.id, jsDate: d.data().ts ? d.data().ts.toDate() : new Date() })); render(); });
     
-    // NEW: Generate Customer Statement PDF
-    window.genStatementPDF = () => {
-        const id = $('histCurId').value;
-        const r = recs.find(x => x.id === id);
-        if(!r) return;
-        
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        
-        doc.setFontSize(16);
-        doc.text("STARBITE - ACCOUNT STATEMENT", 14, 20);
-        doc.setFontSize(12);
-        doc.text(`Customer: ${r.name}`, 14, 30);
-        doc.text(`Phone: ${r.phone}`, 14, 36);
-        doc.text(`Original Debt: ${cur(r.amount)} for ${r.product}`, 14, 42);
-        
-        const rows = (r.payments || []).map(p => [new Date(p.dateTime).toLocaleDateString(), cur(p.amount)]);
-        doc.autoTable({
-            head: [['Date Paid', 'Amount']],
-            body: rows,
-            startY: 50
-        });
-        
-        const paid = sum(r.payments);
-        const owed = r.amount - paid;
-        
-        doc.text(`Total Paid: ${cur(paid)}`, 14, doc.lastAutoTable.finalY + 10);
-        doc.setTextColor(200, 0, 0);
-        doc.text(`Balance Owed: ${cur(owed)}`, 14, doc.lastAutoTable.finalY + 16);
-        
-        doc.save(`Statement_${r.name}.pdf`);
-    };
-
-    // ==========================================
-    // APP 2 JS (PRODUCTION)
-    // ==========================================
-    const config2 = {
-      apiKey: "AIzaSyCX5EZzNLeztpIroUt4CZs6sgmQwj7I0VM",
-      authDomain: "starbite-685e7.firebaseapp.com",
-      projectId: "starbite-685e7",
-      storageBucket: "starbite-685e7.firebasestorage.app",
-      messagingSenderId: "636945152656",
-      appId: "1:636945152656:web:c6e74b34ced5c1579bf615"
-    };
-    const app2 = initializeApp(config2, "prodApp");
-    const db2 = getFirestore(app2);
-    const auth2 = getAuth(app2);
-
-    // CHANGED: P is now dynamic 'products'
-    let products = [];
-    const val = id => Number($(id).value) || 0, setT = (id, t) => $(id).innerText = t, fmt = n => n.toLocaleString();
-    let exp = [], editId2 = null, editExpIdx = null, h2 = [];
-
-    // --- NEW: PRODUCT MANAGEMENT LOGIC ---
-    function initProd() {
-        signInAnonymously(auth2).then(() => {
-            // Listen for products
-            onSnapshot(collection(db2, "products"), (snap) => {
-                products = snap.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b)=>a.n.localeCompare(b.n));
-                
-                if(products.length === 0) $('btnLoadDef').classList.remove('hidden');
-                else $('btnLoadDef').classList.add('hidden');
-
-                renderProdGrid();
-                renderPriceList();
-                render2(); // Re-render history headers
-            });
-
-            setNow2(); uiDate2();
-            onSnapshot(collection(db2, "records"), (snap) => { h2 = snap.docs.map(doc => ({ ...doc.data(), fid: doc.id })); render2(); });
-            onSnapshot(doc(db2, "settings", "capital"), (doc) => { if(doc.exists()) { $('pCap').value = doc.data().p || 0; $('mCap').value = doc.data().m || 0; } calcCapStatus(); });
-        }).catch(e => console.error("Auth2 Error:", e));
-    }
-
-    // Render the Inputs based on database products
-    function renderProdGrid() {
-        if(products.length === 0) {
-            $('prodGrid').innerHTML = '<div class="col-span-full text-center text-gray-500 p-4">No products found.<br>Click "⚙️ Prices" to add items.</div>';
-            return;
-        }
-        // Preserve values if re-rendering while typing? Difficult. 
-        // Better: Only re-render if ID list changes? For now, simple re-render.
-        // We try to save current values to restore them
-        const curVals = {};
-        document.querySelectorAll('.qIn').forEach(i => curVals[i.dataset.id] = i.value);
-        const curRems = {};
-        document.querySelectorAll('.rIn').forEach(i => curRems[i.dataset.pid] = i.value);
-
-        $('prodGrid').innerHTML = products.map(p => `
-            <div class="bg-white rounded p-2 border">
-                <label>${p.n}</label>
-                <input type="number" placeholder="Qty" data-id="${p.id}" value="${curVals[p.id]||''}" class="qIn w-full p-1 border rounded mt-1">
-                <div class="flex justify-between mt-1">
-                    <span class="text-xs">₦<span class="lTot">0</span></span>
-                    <input type="number" placeholder="Rem" data-pid="${p.id}" class="rIn w-12 p-1 border rounded text-xs" oninput="checkLow(this)" value="${curRems[p.id]||0}">
-                </div>
-            </div>`).join('');
-    }
-
-    // NEW: Check Low Stock
-    window.checkLow = (el) => {
-        if(Number(el.value) < 5) el.classList.add('text-red-600', 'font-bold');
-        else el.classList.remove('text-red-600', 'font-bold');
-    }
-
-    // Render the Manager List
-    function renderPriceList() {
-        $('priceList').innerHTML = products.map(p => `
-            <li class="flex justify-between items-center border-b p-1">
-                <span><b>${p.n}</b> - ₦${p.p}</span>
-                <div>
-                    <button onclick="editProd('${p.id}')" class="bg-blue-100 text-blue-800 px-2 rounded text-xs">Edit</button>
-                    <button onclick="delProd('${p.id}')" class="bg-red-100 text-red-800 px-2 rounded text-xs">X</button>
-                </div>
-            </li>
-        `).join('');
-    }
-
-    window.saveProduct = async () => {
-        const id = $('prodEditId').value;
-        const n = $('pMgrName').value.trim();
-        const p = parseFloat($('pMgrPrice').value);
-        if(!n || !p) return alert("Enter name and price");
-
-        if(id) {
-            await updateDoc(doc(db2, "products", id), {n, p});
-        } else {
-            // Create a simple slug ID or random
-            const newId = n.toLowerCase().replace(/[^a-z0-9]/g, '_');
-            // Check if ID exists to avoid overwrite? Firestore addDoc makes unique ID, setDoc uses ours.
-            // Let's use addDoc for safety or setDoc if we want readable IDs.
-            // Using setDoc with generated ID ensures cleaner data if we want fixed IDs
-            await setDoc(doc(db2, "products", newId), {n, p});
-        }
-        resetProdForm();
-    };
-
-    window.editProd = (id) => {
-        const p = products.find(x => x.id === id);
-        $('prodEditId').value = p.id;
-        $('pMgrName').value = p.n;
-        $('pMgrPrice').value = p.p;
-        $('pMgrName').focus();
-    };
-
-    window.delProd = async (id) => {
-        if(confirm("Delete this product?")) await deleteDoc(doc(db2, "products", id));
-    };
-
-    window.resetProdForm = () => {
-        $('prodEditId').value = ''; $('pMgrName').value = ''; $('pMgrPrice').value = '';
-    };
-
-    window.loadDefaultMenu = async () => {
-        if(!confirm("Load default menu items?")) return;
-        const defs = [
-          {id:'egg_roll',n:'Egg roll',p:500},{id:'meat_pie',n:'Meat pie',p:600},{id:'buns',n:'Buns',p:100},{id:'fish_roll',n:'Fish roll',p:500},
-          {id:'cake',n:'Cake',p:800},{id:'small_cake',n:'Small cake',p:200},{id:'chin_sachet',n:'Chin chin (sachet)',p:300},{id:'chin_bag',n:'Chin chin (bag)',p:7500}
-        ];
-        for(const d of defs) {
-            await setDoc(doc(db2, "products", d.id), {n: d.n, p: d.p});
-        }
-    };
-    // -----------------------------
-
-    window.setNow2 = () => { const d = new Date(); $('date2').value = d.toISOString().split('T')[0]; $('time2').value = d.toTimeString().slice(0, 5); }
-    window.uiDate2 = () => {
-      const t = $('repType').value, d = new Date(), y = d.getFullYear(), m = (d.getMonth() + 1).toString().padStart(2, '0');
-      $('dtPick').innerHTML = t === 'monthly' ? `<input id="mPick" type="month" value="${y}-${m}" class="p-1 border rounded text-xs">` : t === 'yearly' ? `<input id="yPick" type="number" value="${y}" class="p-1 border rounded text-xs w-16">` : `<input id="sDate" type="date" class="p-1 text-xs"><input id="eDate" type="date" class="p-1 text-xs">`;
-      if (t === 'range') { $('sDate').value = `${y}-${m}-01`; $('eDate').value = `${y}-${m}-${d.getDate()}`; }
-    }
-    
-    // --- UPDATED CALC FUNCTION ---
-    window.calc2 = () => {
-      let pTot = 0;
-      document.querySelectorAll('.qIn').forEach(i => {
-        const p = products.find(x => x.id === i.dataset.id);
-        if(p) {
-            const remInp = i.parentElement.querySelector('.rIn');
-            const rem = Number(remInp.value) || 0;
-            checkLow(remInp); // trigger color check
-            const sQty = Math.max(0, (Number(i.value) || 0) - rem), amt = sQty * p.p;
-            i.parentElement.querySelector('.lTot').innerText = fmt(amt); pTot += amt;
-        }
-      });
-      setT('prodTot', fmt(pTot));
-      
-      const fl = val('float2');
-      const ch = val('cash2');
-      const mSale = val('miscSale');
-
-      const day = pTot + mSale;
-      const vari = ch - (fl + day);
-
-      setT('dayTot', fmt(day));
-      
-      const vEl = $('var2'); 
-      vEl.innerText = fmt(vari); 
-      vEl.style.color = vari === 0 ? 'green' : vari > 0 ? 'blue' : 'red';
-      
-      return { pTot, mSale, day, vari, fl, ch };
-    }
-    
-    // UPDATED: Expense Categories
-    window.addExp = () => {
-      const d = $('expDesc').value, a = val('expAmt'), c = $('expCat').value;
-      if (!d || a <= 0) return alert('Invalid Expense');
-      if (editExpIdx !== null) exp[editExpIdx] = { d, a, c }; else exp.push({ d, a, c });
-      $('expDesc').value = ''; $('expAmt').value = ''; editExpIdx = null; $('expBtn').innerText = 'Add'; renExp();
-    }
-    function renExp() { 
-        setT('expTot', fmt(exp.reduce((s, x) => s + x.a, 0))); 
-        $('expList').innerHTML = exp.map((x, i) => `<li class="flex justify-between text-xs mt-1"><span>[${x.c||'Gen'}] ${x.d}: ₦${fmt(x.a)}</span><div><button onclick="edExp(${i})" class="bg-gray-400 text-white px-1 mr-1">E</button><button onclick="delExp(${i})" class="bg-red-500 text-white px-1">X</button></div></li>`).join(''); 
-    }
-    window.edExp = (i) => { $('expDesc').value = exp[i].d; $('expAmt').value = exp[i].a; $('expCat').value = exp[i].c || 'General'; editExpIdx = i; $('expBtn').innerText = 'Upd'; }
-    window.delExp = (i) => { exp.splice(i, 1); renExp(); }
-    
-    window.save2 = async () => {
-      const c = calc2();
-      const rec = { id: editId2 || Date.now(), iso: new Date($('date2').value + 'T' + $('time2').value).toISOString(), dt: $('date2').value + ' ' + $('time2').value, items: Array.from(document.querySelectorAll('.qIn')).map(i => ({ id: i.dataset.id, q: Number(i.value) || 0, r: Number(i.parentElement.querySelector('.rIn').value) || 0 })), exp, prod: c.pTot, misc: c.mSale, tot: c.day, prof: c.day - exp.reduce((s, x) => s + x.a, 0), var: c.vari, fl: c.fl, ch: c.ch, ed: !!editId2 };
-      if (editId2) { const target = h2.find(r => r.id === editId2); if(target) await setDoc(doc(db2, "records", target.fid), rec); } 
-      else await addDoc(collection(db2, "records"), rec);
-      editMode2(false); toast('Cloud Synced');
-    }
-
-    function render2() {
-      const sorted = h2.sort((a, b) => new Date(b.iso) - new Date(a.iso));
-      let gS = 0, gP = 0;
-      
-      // Dynamic Headers based on PRODUCTS
-      $('hHead2').innerHTML = `<th>Date</th>${products.map(p => `<th>${p.n}</th>`).join('')}<th>Rem</th><th>Prod</th><th>Misc</th><th>Tot</th><th>Exp</th><th>Prof</th><th>Var</th><th>Act</th>`;
-      
-      $('hBody2').innerHTML = sorted.map(r => {
-        gS += r.tot; gP += r.prof;
-        // Dynamic Columns
-        const prodCols = products.map(p => { 
-            const it = r.items.find(x => x.id === p.id) || { q: 0 }; 
-            return `<td>${it.q || '-'}</td>`; 
-        }).join('');
-        // ADDED DELETE BUTTON (X) HERE
-        return `<tr class="border-b"><td>${r.dt}</td>${prodCols}<td>${r.items.reduce((s, x) => s + x.r, 0)}</td><td>₦${fmt(r.prod)}</td><td>₦${fmt(r.misc)}</td><td>₦${fmt(r.tot)}</td><td>₦${fmt((r.exp || []).reduce((s, x) => s + x.a, 0))}</td><td>₦${fmt(r.prof)}</td><td>₦${fmt(r.var)}</td><td><button onclick="load2(${r.id})" class="bg-blue-500 text-white px-1">E</button> <button onclick="del2('${r.id}')" class="bg-red-500 text-white px-1">X</button></td></tr>`;
-      }).join('');
-      setT('allSales2', fmt(gS)); setT('allProf2', fmt(gP));
-      calcCapStatus();
-    }
-    
-    // NEW: Delete Function for Production
-    window.del2 = async (id) => {
-        if(!confirm("Delete this record permanently?")) return;
-        const r = h2.find(x => x.id === id);
-        if(r) await deleteDoc(doc(db2, "records", r.fid));
-    }
-
-    window.load2 = (id) => {
-      const r = h2.find(x => x.id === id); if (!r) return;
-      $('date2').value = r.dt.split(' ')[0]; $('time2').value = r.dt.split(' ')[1]; $('float2').value = r.fl; $('cash2').value = r.ch; exp = r.exp || [];
-      $('miscSale').value = r.misc || 0;
-
-      // Populate Inputs (Handle cases where old products were deleted)
-      products.forEach(p => { 
-          const it = r.items.find(x => x.id === p.id); 
-          const inp = document.querySelector(`input[data-id="${p.id}"]`); 
-          if(inp && it) { 
-              inp.value = it.q + it.r; 
-              inp.parentElement.querySelector('.rIn').value = it.r; 
-          } 
-      });
-      editId2 = r.id; $('saveBtn2').innerText = 'Update Cloud'; $('cancelBtn2').classList.remove('hidden'); renExp(); calc2(); window.scrollTo(0,0);
-    }
-    window.editMode2 = (on) => { editId2 = null; $('saveBtn2').innerText = 'Save'; $('cancelBtn2').classList.add('hidden'); exp = []; $('miscSale').value = 0; renExp(); setNow2(); calc2(); }
-    window.saveCap = async () => { await setDoc(doc(db2, "settings", "capital"), { p: val('pCap'), m: val('mCap') }); }
-    function calcCapStatus() {
-      const tot = val('pCap') + val('mCap'), prof = h2.reduce((s, r) => s + (r.prof || 0), 0);
-      setT('cumProfit', fmt(prof)); setT('totCap', fmt(tot)); setT('remCap', fmt(Math.max(0, tot - prof)));
-    }
-    function toast(m) { const el = $('toast'); el.className = 's show'; el.innerText = m; setTimeout(() => el.classList.remove('show'), 3000); }
-    
-    // --- PDF GENERATION ---
-    window.genPDF = () => {
-      try {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF('l', 'mm', 'a4'); 
-
-        const reportType = $('repType').value;
-        const dateLabel = reportType === 'monthly' ? $('mPick').value : 
-                          (reportType === 'yearly' ? $('yPick').value : 'Custom Range');
-
-        doc.setFontSize(18);
-        doc.text(`STARBITE PRODUCTION REPORT - ${dateLabel.toUpperCase()}`, 14, 15);
-        doc.setFontSize(11);
-        doc.setTextColor(100);
-        doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 22);
-
-        // Prep Data DYNAMICALLY
-        const prodNames = products.map(p => p.n);
-        const tableHeaders = [["Date", ...prodNames, "Sales (N)", "Exp (N)", "Profit (N)"]];
-        
-        const tableRows = h2.sort((a, b) => new Date(b.iso) - new Date(a.iso)).map(r => {
-          const row = [r.dt];
-          // Fill dynamic product columns
-          products.forEach(p => {
-              const it = r.items.find(x => x.id === p.id);
-              row.push(it ? it.q : '-');
-          });
-          row.push(r.tot.toLocaleString());
-          row.push((r.exp || []).reduce((s, x) => s + x.a, 0).toLocaleString());
-          row.push(r.prof.toLocaleString());
-          return row;
-        });
-
-        doc.autoTable({
-          head: tableHeaders,
-          body: tableRows,
-          startY: 30,
-          theme: 'grid',
-          headStyles: { fillColor: [30, 64, 175] }, 
-          styles: { fontSize: 8 },
-          margin: { top: 30 }
-        });
-
-        const finalY = doc.lastAutoTable.finalY + 10;
-        const totalSales = h2.reduce((s, r) => s + (r.tot || 0), 0);
-        const totalProf = h2.reduce((s, r) => s + (r.prof || 0), 0);
-
-        doc.setFontSize(12);
-        doc.setTextColor(0);
-        doc.text(`Total Period Sales: N${totalSales.toLocaleString()}`, 14, finalY);
-        doc.text(`Total Period Profit: N${totalProf.toLocaleString()}`, 14, finalY + 7);
-
-        doc.save(`Starbite_Report_${dateLabel}.pdf`);
-        toast('PDF Downloaded');
-
-      } catch (error) {
-        console.error("PDF Error:", error);
-        alert("PDF Error: Check console or ensure data exists.");
-      }
-    };
-
-    // --- CSV EXPORT ---
-    window.expCSV = () => {
-      try {
-        let csv = "Date,Sales,Profit,Expenses\n";
-        h2.forEach(r => {
-           const e = (r.exp || []).reduce((s, x) => s + x.a, 0);
-           csv += `${r.dt},${r.tot},${r.prof},${e}\n`;
-        });
-        
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.setAttribute('hidden', '');
-        a.setAttribute('href', url);
-        a.setAttribute('download', 'starbite_data.csv');
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      } catch (e) {
-        alert("CSV Error");
-      }
-    }
-    
-    window.wipe2 = async () => { if (confirm('Clear Cloud?')) { const snap = await getDocs(collection(db2, "records")); snap.forEach(d => deleteDoc(doc(db2, "records", d.id))); } }
-    initProd();
-
-    // ==========================================
-    // APP 3 JS (CHARGING)
-    // ==========================================
-    const config3 = {
-      apiKey: "AIzaSyD-VJwcuv1FghZLMwaYIhfegRtwEwySPik",
-      authDomain: "starbite-8fbeb.firebaseapp.com",
-      projectId: "starbite-8fbeb",
-      storageBucket: "starbite-8fbeb.firebasestorage.app",
-      messagingSenderId: "258782985692",
-      appId: "1:258782985692:web:d6667b25878b91cbd6a319"
-    };
-    const app3 = initializeApp(config3, "chargeApp");
-    const db3 = getFirestore(app3);
-    const auth3 = getAuth(app3);
-    const col3 = collection(db3, "tickets");
-
-    let tData3 = [], editId3 = null, chartInstance = null;
-    
-    // Partial Checkout State
-    let partialState = { id: null, ph: 0, pb: 0, ch: 0, orig: {} };
-
-    signInAnonymously(auth3).then(() => {
-        onSnapshot(query(col3, orderBy("ts", "desc")), (snap) => {
-          tData3 = snap.docs.map(d => ({ ...d.data(), id: d.id, jsDate: d.data().ts ? d.data().ts.toDate() : new Date() }));
-          render3();
-          renderChart();
-        });
-    }).catch(e => console.error("Auth3 Error:", e));
-
-    // NEW: Logic to find next available sockets (Multiple for one ticket)
     function getNextSockets(neededCount) {
-        // Collect all used socket numbers
-        const usedSockets = new Set();
-        tData3.filter(t => !t.collected && t.status === 'charging' && t.sockets).forEach(t => {
-            // t.sockets stores a string like "1, 2" or number 5
-            const s = String(t.sockets).split(',').map(n => Number(n.trim()));
-            s.forEach(num => usedSockets.add(num));
-        });
-
+        const active = ticketsData.filter(t => !t.collected);
+        const used = active.flatMap(t => t.sockets || []); 
         const assigned = [];
-        let current = 1;
+        let candidate = 1;
         while(assigned.length < neededCount) {
-            if(!usedSockets.has(current)) {
-                assigned.push(current);
-            }
-            current++;
+            if(!used.includes(candidate)) { assigned.push(candidate); }
+            candidate++;
         }
-        return assigned.join(', ');
+        return assigned;
     }
 
-    window.saveTicket = async () => {
-      const name = $('custName').value.trim(); if(!name) return alert("Name required");
-      const payStatus = document.querySelector('input[name="payStatus"]:checked').value;
-      
-      const ph = +$('phCount').value;
-      const pb = +$('pbCount').value;
-      const ch = +$('chCount').value;
-      const slotsNeeded = ph + pb; // ONLY PHONES AND POWERBANKS NEED SOCKETS
+    function genSecCode(id, price) {
+        return `SEC-${id.substring(0,4).toUpperCase()}-${price}-${Math.floor(Math.random()*99)}`;
+    }
 
-      let sockets = $('socketNum').value; // In case editing
-      
-      // If new ticket, calculate next sockets based on item count
-      if(!editId3) sockets = getNextSockets(slotsNeeded);
-
-      const data = { name, code: Math.floor(1000 + Math.random() * 9000), ph, pb, ch, price: +$('price3').value, collected: false, payStatus, sockets, status: 'charging' };
-      
-      if(editId3) { await updateDoc(doc(db3, "tickets", editId3), data); cancelEdit3(); }
-      else { const dRef = await addDoc(col3, { ...data, charged: false, ts: serverTimestamp() }); resetForm3(); openPrintModal(dRef.id, data, data.code); }
-    };
-
-    window.startEdit3 = (id) => {
-      const t = tData3.find(x => x.id === id); editId3 = id;
-      $('custName').value = t.name; $('phCount').value = t.ph; $('pbCount').value = t.pb; $('chCount').value = t.ch; $('price3').value = t.price;
-      $('socketNum').value = t.sockets || '';
-      
-      // SET RADIO BUTTON
-      const radios = document.getElementsByName('payStatus');
-      if(t.payStatus === 'later') radios[1].checked = true; else radios[0].checked = true;
-
-      $('formAction').innerText = "Editing Ticket"; $('saveBtn3').innerText = "💾 UPDATE"; $('cancelEditBtn3').style.display = "block";
-    };
-    window.cancelEdit3 = () => { 
-        editId3 = null; resetForm3(); 
-        $('formAction').innerText = "New Customer"; $('saveBtn3').innerText = "✅ START CHARGING"; $('cancelEditBtn3').style.display = "none";
-        // Reset radio
-        document.getElementsByName('payStatus')[0].checked = true;
-    };
-    
-    // ---- UPDATED: RUN QUICK COLLECT (SMART SEARCH) ----
-    window.runQuickCollect = async () => {
-      const codeVal = $('quickCode').value.trim();
-      if(!codeVal) return alert("Please enter a code");
-
-      // Find active ticket (Either charging OR on shelf)
-      const target = tData3.find(t => t.code == codeVal && !t.collected);
-
-      if(!target) {
-        alert("❌ Ticket not found active!");
-        return;
-      }
-      
-      // Determine Message based on status
-      let locMsg = "";
-      if(target.status === 'shelf') {
-          locMsg = `📦 It is FULLY CHARGED.\nGet from SHELF.`;
-      } else {
-          locMsg = `⚡ It is still CHARGING.\nGet from SOCKETS: ${target.sockets}`;
-      }
-
-      if(confirm(`FOUND: ${target.name}\n${locMsg}\n\nMark as COLLECTED now?`)) {
-          // Automatically mark as collected
-          await updateDoc(doc(db3, "tickets", target.id), {
-             collected: true,
-             collDate: new Date().toLocaleDateString()
-          });
-          alert("✅ Marked Collected!");
-      }
-      $('quickCode').value = ''; // Reset input
-    };
-    
-    // ---- NEW: REPORTS FUNCTIONALITY ----
-    window.openReportModal = () => {
-        $('modalReport').style.display = 'flex';
-        calcReport('daily'); // Default to daily
-    };
-    
-    window.calcReport = (type) => {
-        // Handle UI
-        ['btnRepD', 'btnRepW', 'btnRepM'].forEach(b => $(b).classList.remove('active'));
-        if(type==='daily') $('btnRepD').classList.add('active');
-        if(type==='weekly') $('btnRepW').classList.add('active');
-        if(type==='monthly') $('btnRepM').classList.add('active');
+    window.saveTicket = async () => { 
+        const name = document.getElementById('custName').value.trim(); 
+        const phone = document.getElementById('custPhone').value.trim();
+        if(!name) return alert("Name required"); 
         
-        const now = new Date();
-        const filtered = tData3.filter(t => {
-            // Note: We only sum collected revenue, but we can count total devices even if pending
-            if(!t.collected) return false; 
-            
-            const d = t.jsDate;
-            if(type === 'daily') {
-                return d.getDate() === now.getDate() && 
-                       d.getMonth() === now.getMonth() && 
-                       d.getFullYear() === now.getFullYear();
-            }
-            if(type === 'weekly') {
-                const oneWeekAgo = new Date();
-                oneWeekAgo.setDate(now.getDate() - 7);
-                return d >= oneWeekAgo;
-            }
-            if(type === 'monthly') {
-                return d.getMonth() === now.getMonth() && 
-                       d.getFullYear() === now.getFullYear();
-            }
-        });
+        const payStatus = document.getElementById('payStatus').value;
+        const ticketCode = Math.floor(1000 + Math.random() * 9000); 
         
-        const rev = filtered.reduce((a,b) => a + (b.price||0), 0);
-        const ph = filtered.reduce((a,b) => a + (b.ph||0), 0);
-        const pb = filtered.reduce((a,b) => a + (b.pb||0), 0);
-        const ch = filtered.reduce((a,b) => a + (b.ch||0), 0);
+        const ph = +document.getElementById('phCount').value;
+        const pb = +document.getElementById('pbCount').value;
+        const ch = +document.getElementById('chCount').value;
         
-        $('repRevenue').innerText = "₦" + rev.toLocaleString();
-        $('repTotalDev').innerText = (ph + pb + ch);
-        $('repCustCount').innerText = filtered.length;
-        $('repBreakdown').innerText = `📱${ph} | 🔋${pb} | 🔌${ch}`;
-    };
-    // ----------------------------------------
-    
-    // NEW: VISUAL CHART LOGIC
-    function renderChart() {
-        if(!tData3.length) return;
-        
-        // Aggregate last 7 days revenue
-        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const today = new Date();
-        const labels = [], data = [];
-        
-        for(let i=6; i>=0; i--) {
-            const d = new Date(today);
-            d.setDate(today.getDate() - i);
-            const dStr = d.toLocaleDateString();
-            
-            labels.push(days[d.getDay()]);
-            
-            // Sum collected revenue for this day
-            const dailyTotal = tData3
-                .filter(t => t.collected && t.collDate === dStr)
-                .reduce((sum, t) => sum + (t.price || 0), 0);
-            data.push(dailyTotal);
+        const socketsNeeded = ph + pb; 
+
+        let assignedSockets = [];
+        if(!editId) {
+             assignedSockets = getNextSockets(socketsNeeded); 
         }
 
-        const ctx = document.getElementById('revChart');
-        if(chartInstance) chartInstance.destroy();
-        
-        chartInstance = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Revenue (₦)',
-                    data: data,
-                    backgroundColor: 'rgba(59, 130, 246, 0.5)',
-                    borderColor: 'rgb(59, 130, 246)',
-                    borderWidth: 1
-                }]
-            },
-            options: { scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
-        });
-    }
+        const data = { 
+            name, phone, sockets: assignedSockets, payStatus, code: ticketCode, 
+            ph, pb, ch, price: +document.getElementById('price').value, collected: false 
+        }; 
 
-    window.render3 = () => {
-      const term = $('histSearch').value.toLowerCase();
-      const active = tData3.filter(t => !t.collected);
-      const history = tData3.filter(t => t.collected && (t.name.toLowerCase().includes(term) || (t.code+"").includes(term)));
-      $('countActive').innerText = active.length;
-      $('listActive').innerHTML = active.map(t => ticketHtml(t, false)).join('');
-      $('listHistory').innerHTML = (term==="" ? history.slice(0,5) : history).map(t => ticketHtml(t, true)).join('');
-      
-      const today = new Date().toLocaleDateString();
-      const cash = tData3.filter(t => t.collected && t.collDate === today).reduce((s, t) => s + (t.price || 0), 0);
-      $('valCash').innerText = "₦" + cash.toLocaleString();
-      $('valPending').innerText = "₦" + active.reduce((s, t) => s + (t.price || 0), 0).toLocaleString();
-      $('valCount').innerText = tData3.filter(t => t.collected && t.collDate === today).reduce((s, t) => s + (t.ph||0) + (t.pb||0) + (t.ch||0), 0);
-      updateTimers();
-    }
-    
-    // UPDATED HTML to include PARTIAL button
-    function ticketHtml(t, isH) {
-      // Determine badge based on payment status
-      const pBadge = t.payStatus === 'later' 
-        ? `<span class="bg-red-500 text-white text-xs px-2 py-1 rounded ml-2">LATER</span>` 
-        : `<span class="bg-green-500 text-white text-xs px-2 py-1 rounded ml-2">PAID</span>`;
-      
-      const sBadge = t.sockets ? `<span class="bg-gray-800 text-white text-xs px-2 py-1 rounded ml-1">🔌${t.sockets}</span>` : '';
-
-      // ADDED DELETE BUTTON (Trash Can) HERE
-      if(isH) return `<div class="ticket"><b>${t.name}</b> <span class="code-badge">#${t.code}</span><br><small>Out: ${t.collDate}</small> <div style="float:right"><button onclick="revert3('${t.id}')">↩️</button> <button onclick="delTicket3('${t.id}')">🗑️</button></div></div>`;
-      
-      // ACTIVE TICKET LOGIC (Shelf vs Socket)
-      let actionBtn = "";
-      let locDisplay = "";
-      
-      if(t.status === 'shelf') {
-          // It's on shelf
-          locDisplay = `<div class="bg-green-100 text-green-800 p-1 rounded text-xs font-bold text-center mt-1">📦 ON SHELF</div>`;
-          actionBtn = `<button class="bg-blue-700 text-white px-3 py-1 rounded w-full" onclick="collect3('${t.id}')">Give to Owner</button>`;
-      } else {
-          // It's charging
-           locDisplay = `<div class="bg-blue-50 text-blue-800 p-1 rounded text-xs font-bold text-center mt-1">⚡ SOCKETS: ${t.sockets}</div>`;
-           // NEW: Added Partial Button
-           actionBtn = `<div class="flex gap-1">
-               <button class="bg-purple-600 text-white px-2 py-1 rounded w-1/3" onclick="openPartial('${t.id}')">½ Part</button>
-               <button class="bg-green-600 text-white px-3 py-1 rounded w-2/3" onclick="markFull('${t.id}')">🔋 Done</button>
-           </div>`;
-      }
-
-      return `<div class="ticket ${t.status==='shelf'?'shelf-mode':''}"><div class="flex justify-between items-center"><div><b>${t.name}</b> <span class="code-badge">#${t.code}</span></div><div>${sBadge}${pBadge}</div></div>${locDisplay}<div class="timer-area"><span>In: ${t.jsDate.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span><span class="time-val" id="timer-${t.id}">0h 0m</span></div><small>📱${t.ph}🔋${t.pb}🔌${t.ch} | ₦${t.price}</small><div class="flex gap-2 mt-2"><button class="bg-black text-white px-3 py-1 rounded" onclick="openPrintModal('${t.id}')">🖨️</button><button class="bg-yellow-500 px-3 py-1 rounded" onclick="startEdit3('${t.id}')">✏️</button>${actionBtn}</div></div>`;
-    }
-    
-    // NEW: Mark as Full (Move to Shelf) - NO PROMPT
-    window.markFull = async (id) => {
-        await updateDoc(doc(db3, "tickets", id), { status: 'shelf' });
-    }
-    
-    // NEW: Open Partial Modal
-    window.openPartial = (id) => {
-        const t = tData3.find(x => x.id === id);
-        if(!t) return;
-        
-        partialState = { id, ph: 0, pb: 0, ch: 0, orig: { ...t } };
-        
-        // Reset UI
-        $('disp_ph').innerText = "0";
-        $('disp_pb').innerText = "0";
-        $('disp_ch').innerText = "0";
-        $('partRemMsg').innerText = `Keep: ${t.ph} Ph, ${t.pb} Pb, ${t.ch} Ch`;
-        $('btnConfirmPart').innerText = "Release Items";
-        $('btnConfirmPart').disabled = false;
-        
-        $('partialModal').style.display = 'flex';
+        try { 
+            if(editId) { 
+                const { code, sockets, ...uData } = data; 
+                await updateDoc(doc(db, "tickets", editId), uData); 
+                cancelEdit(); 
+            } else { 
+                const docRef = await addDoc(col, { ...data, charged: false, ts: serverTimestamp() }); 
+                const secCode = genSecCode(docRef.id, data.price);
+                await updateDoc(doc(db, "tickets", docRef.id), { secCode });
+                
+                resetForm(); 
+                openPrintModal(docRef.id, { ...data, secCode }, ticketCode); 
+            } 
+        } catch(e) { alert(e.message); } 
     };
+
+    window.startEdit = (id) => { 
+        const t = ticketsData.find(x => x.id === id); 
+        editId = id; 
+        document.getElementById('custName').value = t.name; 
+        document.getElementById('custPhone').value = t.phone || "";
+        document.getElementById('payStatus').value = t.payStatus || "Later"; 
+        document.getElementById('phCount').value = t.ph; 
+        document.getElementById('pbCount').value = t.pb; 
+        document.getElementById('chCount').value = t.ch; 
+        document.getElementById('price').value = t.price; 
+        document.getElementById('formAction').innerText = "Editing Ticket"; 
+        document.getElementById('saveBtn').innerText = "💾 UPDATE"; 
+        document.getElementById('cancelEditBtn').style.display = "block"; 
+    };
+
+    window.cancelEdit = () => { editId = null; resetForm(); document.getElementById('formAction').innerText = "New Customer"; document.getElementById('saveBtn').innerText = "✅ START CHARGING"; document.getElementById('cancelEditBtn').style.display = "none"; };
     
-    // Adjust Partial Counts
-    window.adjPart = (type, delta) => {
-        const t = partialState.orig;
-        
-        // Limit 0 to Max
-        let newVal = partialState[type] + delta;
-        if(newVal < 0) newVal = 0;
-        if(newVal > t[type]) newVal = t[type]; // Cannot take more than exist
-        
-        partialState[type] = newVal;
-        $(`disp_${type}`).innerText = newVal;
-        
-        // Update Summary
-        const rPh = t.ph - partialState.ph;
-        const rPb = t.pb - partialState.pb;
-        const rCh = t.ch - partialState.ch;
-        
-        if(rPh === 0 && rPb === 0 && rCh === 0) {
-            $('partRemMsg').innerText = "ALL ITEMS COLLECTED";
-            $('btnConfirmPart').innerText = "Close Ticket";
-            $('btnConfirmPart').classList.remove('bg-blue-600');
-            $('btnConfirmPart').classList.add('bg-red-600');
-        } else {
-            $('partRemMsg').innerText = `Keep: ${rPh} Ph, ${rPb} Pb, ${rCh} Ch`;
-            $('btnConfirmPart').innerText = "Confirm Release";
-            $('btnConfirmPart').classList.add('bg-blue-600');
-            $('btnConfirmPart').classList.remove('bg-red-600');
+    window.moveToShelf = async (id) => {
+        if(confirm("Device full? Move to Shelf and free socket?")) {
+            await updateDoc(doc(db, "tickets", id), { sockets: [] });
         }
     };
-    
-    // Confirm Partial - FIXED DATA TYPE ISSUE
-    window.confirmPartial = async () => {
-        try {
-            const btn = $('btnConfirmPart');
-            btn.innerText = "Processing...";
-            btn.disabled = true;
 
-            const id = partialState.id;
-            const t = partialState.orig;
-            const remPh = partialState.ph;
-            const remPb = partialState.pb;
-            const remCh = partialState.ch;
-            
-            if(remPh === 0 && remPb === 0 && remCh === 0) {
-                $('partialModal').style.display = 'none';
-                btn.disabled = false;
-                return; 
-            }
-
-            // Logic to free sockets
-            let newSockets = t.sockets;
-            const totalSocketsFreed = remPh + remPb; // Only Ph and Pb take sockets
-            
-            // FIX: Force t.sockets to string to prevent crash
-            let currentSockets = "";
-            if (t.sockets) currentSockets = String(t.sockets); 
-            
-            if(totalSocketsFreed > 0 && currentSockets) {
-                const sArr = currentSockets.split(',').map(s => s.trim());
-                // Remove from end
-                sArr.splice(-totalSocketsFreed);
-                newSockets = sArr.join(', ');
-            }
-            
-            const newPh = t.ph - remPh;
-            const newPb = t.pb - remPb;
-            const newCh = t.ch - remCh;
-            
-            // If everything collected, close ticket
-            if(newPh === 0 && newPb === 0 && newCh === 0) {
-                await updateDoc(doc(db3, "tickets", id), { 
-                    ph: 0, pb: 0, ch: 0, 
-                    collected: true, 
-                    collDate: new Date().toLocaleDateString() 
-                });
-                alert("All items collected. Ticket Closed.");
-            } else {
-                // Partial Update
-                await updateDoc(doc(db3, "tickets", id), { 
-                    ph: newPh, pb: newPb, ch: newCh, 
-                    sockets: newSockets 
-                });
-                alert(`Updated! Keeping: ${newPh} Phones, ${newPb} Powerbanks.`);
-            }
-            $('partialModal').style.display = 'none';
-            btn.disabled = false;
-        } catch(e) {
-            console.error(e);
-            alert("Error updating ticket. Check console.");
-            $('btnConfirmPart').disabled = false;
+    window.deleteTicket = async (id) => {
+        if(confirm("Permanently delete this ticket record?")) {
+            await deleteDoc(doc(db, "tickets", id));
         }
     };
-    
-    // NEW: Delete Function for Charging Tickets
-    window.delTicket3 = async (id) => {
-        if(!confirm("Delete ticket history?")) return;
-        await deleteDoc(doc(db3, "tickets", id));
+
+    function render() { 
+        const term = document.getElementById('histSearch').value.toLowerCase(); 
+        const active = ticketsData.filter(t => !t.collected); 
+        const history = ticketsData.filter(t => t.collected && (t.name.toLowerCase().includes(term) || (t.code+"").includes(term))); 
+        document.getElementById('countActive').innerText = active.length; 
+        document.getElementById('listActive').innerHTML = active.map(t => ticketHtml(t, false)).join(''); 
+        document.getElementById('listHistory').innerHTML = (term==="" ? history.slice(0,5) : history).map(t => ticketHtml(t, true)).join(''); 
+        
+        const todayStr = new Date().toLocaleDateString(); 
+        const todaysCash = ticketsData.filter(t => { const isToday = (t.collDate === todayStr) || (t.jsDate.toLocaleDateString() === todayStr); const isPaid = t.collected || t.payStatus === 'Now'; return isToday && isPaid; }).reduce((sum, t) => sum + (t.price || 0), 0);
+        const pendingCash = active.filter(t => t.payStatus !== 'Now').reduce((sum, t) => sum + (t.price || 0), 0); 
+        const todaysCount = ticketsData.filter(t => (t.collDate === todayStr || t.jsDate.toLocaleDateString() === todayStr)).reduce((sum, t) => sum + (t.ph||0) + (t.pb||0) + (t.ch||0), 0); 
+        
+        document.getElementById('valCash').innerText = "₦" + todaysCash.toLocaleString(); 
+        document.getElementById('valPending').innerText = "₦" + pendingCash.toLocaleString(); 
+        document.getElementById('valCount').innerText = todaysCount; 
+        updateTimers(); 
     }
-    
-    function updateTimers() {
-      const now = new Date();
-      tData3.filter(t => !t.collected).forEach(t => {
-        const el = $(`timer-${t.id}`); if(!el) return;
-        const diff = Math.floor((now - t.jsDate) / 60000);
-        const h = Math.floor(diff/60), m = diff%60;
-        el.innerText = `${h}h ${m}m`; if(h>=3) el.classList.add('danger');
-      });
+
+    function ticketHtml(t, isHistory) { 
+        const code = t.code || '----'; 
+        let sockStr = "";
+        
+        if (!t.collected && (!t.sockets || t.sockets.length === 0)) {
+            sockStr = `<span style="color:#666; font-weight:bold; background:#eee; padding:2px 5px; border-radius:4px;">[SHELF 📦]</span>`;
+        } else if(t.sockets && Array.isArray(t.sockets) && t.sockets.length > 0) { 
+            sockStr = `[Slots: ${t.sockets.join(', ')}]`; 
+        } else if (t.socket) { 
+            sockStr = `[Slot: ${t.socket}]`; 
+        }
+
+        const badge = t.payStatus === 'Now' ? '<span class="pill-paid">PAID</span>' : '<span class="pill-owe">OWE</span>';
+        
+        if(isHistory) return `<div class="ticket history-style">
+            <b>${t.name}</b> <span class="code-badge">#${code}</span> ${badge}<br>
+            <small>Out: ${t.collDate||'?'}</small> 
+            <div style="float:right;">
+                <button style="padding:5px; margin-right:5px;" onclick="revertCollection('${t.id}')">↩️</button>
+                <button style="padding:5px; background:#dc3545; color:white; border:none; border-radius:4px; cursor:pointer;" onclick="deleteTicket('${t.id}')">🗑️</button>
+            </div>
+        </div>`; 
+        
+        const plugTime = t.jsDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}); 
+        
+        return `<div class="ticket">
+            <div style="display:flex; justify-content:space-between"><div><b>${t.name}</b> ${sockStr}</div><div>${badge} <span class="code-badge">#${code}</span></div></div>
+            <div class="timer-area"><span>In: ${plugTime}</span><span class="time-val" id="timer-${t.id}">0h 0m</span></div>
+            <small>📱${t.ph} 🔋${t.pb} 🔌${t.ch} | ₦${t.price}</small>
+            <div class="row" style="margin-top:5px">
+                <button class="btn-print" onclick="openPrintModal('${t.id}')">🖨️</button>
+                <button class="btn-edit" onclick="startEdit('${t.id}')">✏️</button>
+                <button class="btn-shelf" onclick="moveToShelf('${t.id}')">🔌</button>
+                <button style="background:var(--success)" onclick="collectAll('${t.id}')">Collect</button>
+            </div>
+        </div>`; 
     }
-    setInterval(updateTimers, 60000);
+
+    function updateTimers() { const now = new Date(); ticketsData.filter(t => !t.collected).forEach(t => { const el = document.getElementById(`timer-${t.id}`); if(!el) return; const diffMins = Math.floor((now - t.jsDate) / 60000); const h = Math.floor(diffMins / 60), m = diffMins % 60; el.innerText = `${h}h ${m}m`; if (h >= 3) el.classList.add('danger'); else el.classList.remove('danger'); }); } setInterval(updateTimers, 1000);
     
-    window.openPrintModal = (id, data=null, newCode=null) => {
-        let t = data, code = newCode;
-        if(!t) { t = tData3.find(x => x.id === id); code = t.code; }
+    // === MODAL WITH TEXT GENERATION & SECURITY ===
+    window.openPrintModal = (id, data=null, newCode=null) => { 
+        let t = data, dObj = new Date(), code = newCode; 
+        if(!t) { 
+            const found = ticketsData.find(x => x.id === id); 
+            if(found) { t = found; dObj = found.jsDate; code = found.code; } 
+        } 
+        currentReceiptData = { ...t, code, dObj };
+        
+        const secCode = t.secCode || genSecCode(id, t.price);
         const totalItems = (t.ph || 0) + (t.pb || 0) + (t.ch || 0);
-        
-        // --- UPDATED: Item Breakdown ---
-        let itemListHtml = "";
-        if((t.ph || 0) > 0) itemListHtml += `<div>- Phone: ${t.ph}</div>`;
-        if((t.pb || 0) > 0) itemListHtml += `<div>- Powerbank: ${t.pb}</div>`;
-        if((t.ch || 0) > 0) itemListHtml += `<div>- Charger: ${t.ch}</div>`;
-        
-        // Add status to receipt
-        const payTxt = t.payStatus === 'later' ? '(PAY LATER)' : '(PAID)';
-        const socketTxt = t.sockets ? `<br><b>SOCKETS: ${t.sockets}</b>` : '';
+        const stickerCount = (t.ph || 0) + (t.pb || 0); 
+        let stickersHTML = ""; for(let i=0; i<stickerCount; i++) stickersHTML += `<div class="sticker">#${code}</div>`; 
+        const payTxt = t.payStatus === 'Now' ? "PAID" : "DUE";
+        const socketDisplay = (t.sockets && Array.isArray(t.sockets)) ? t.sockets.join(', ') : (t.socket || "N/A");
 
-        let stickers = ""; for(let i=0; i<totalItems; i++) stickers += `<div class="sticker">#${code}</div>`;
-        
-        $('receiptPreview').innerHTML = `
-            <div class="font-bold">STARBITE CHARGING</div>
-            <div>${new Date().toLocaleString()}</div>
+        document.getElementById('receiptPreview').innerHTML = `
+            <div class="r-header">STARBITE CHARGING</div><div class="r-date">${dObj.toLocaleString()}</div>
             <div class="r-code-box"><div class="r-code-text">#${code}</div></div>
-            <div class="text-left">
-                <b>Customer:</b> ${t.name.toUpperCase()}<br>
-                <div style="margin: 5px 0; border-bottom:1px dashed #ccc; padding-bottom:5px;">
-                   ${itemListHtml}
-                </div>
-                ${socketTxt}<br>
-                <b>TOTAL: ₦${t.price}</b><br>
-                <span style="font-size:12px; font-weight:bold">${payTxt}</span>
-            </div>
-            <div style="font-size:10px; font-weight:bold; margin-top:10px; text-align:center;">
-                Check device before leaving.
-            </div>
-            <div class="r-cut-line"></div>
-            <div class="sticker-container">${stickers}</div>`;
-            
-        $('modalPrint').style.display = 'flex';
+            <div style="text-align:left; font-size:14px; margin:10px 0;"><div><b>Customer:</b> ${t.name.toUpperCase()}</div><div style="font-weight:bold; font-size:16px; margin:5px 0;">Sockets: ${socketDisplay}</div>
+            <div class="r-row"><span>Items:</span><span>${totalItems}</span></div>
+            <div style="border-top:1px dashed #000; font-weight:bold; margin-top:5px; display:flex; justify-content:space-between;"><span>TOTAL:</span><span>₦${t.price} (${payTxt})</span></div>
+            <div class="secure-hash">SECURE ID: ${secCode}</div>
+            <div style="text-align:center; font-style:italic; font-size:11px; margin-top:10px; border:1px solid #ccc; padding:3px;">NOTE: Check your device before leaving.</div></div>
+            <div class="r-cut-line"></div><div class="sticker-container">${stickersHTML}</div>`; 
+        document.getElementById('modalPrint').style.display = 'flex'; 
     };
+
+    // --- UPDATED: DIRECT WHATSAPP TEXT ---
+    window.sendWAText = () => {
+        if(!currentReceiptData) return;
+        const t = currentReceiptData;
+        const payTxt = t.payStatus === 'Now' ? "PAID" : "DUE";
+        
+        let phone = t.phone ? t.phone.replace(/\D/g, '') : '';
+        if(phone.startsWith('0')) phone = '234' + phone.substring(1);
+        
+        const secCode = t.secCode || "N/A";
+        
+        const text = `🧾 *STARBITE CHARGING RECEIPT*\n` +
+                     `📅 Date: ${t.dObj.toLocaleDateString()} ${t.dObj.toLocaleTimeString()}\n` +
+                     `👤 Customer: ${t.name}\n` +
+                     `🎟 Ticket: *#${t.code}*\n` +
+                     `----------------\n` +
+                     `📱 Phones: ${t.ph}\n` +
+                     `🔋 P-Banks: ${t.pb}\n` +
+                     `🔌 Chargers: ${t.ch}\n` +
+                     `----------------\n` +
+                     `💰 *TOTAL: ₦${t.price} (${payTxt})*\n` +
+                     `🔒 Secure ID: ${secCode}\n` +
+                     `----------------\n` +
+                     `Please collect your device with code #${t.code}.`;
+        
+        const baseUrl = phone ? `https://wa.me/${phone}` : `https://wa.me/`;
+        window.open(`${baseUrl}?text=${encodeURIComponent(text)}`, '_blank');
+    }
+
+    window.collectAll = async (id) => { if(confirm("Mark as Collected?")) await updateDoc(doc(db, "tickets", id), { collected: true, collDate: new Date().toLocaleDateString() }); };
+    window.revertCollection = async (id) => { if(confirm("Re-Activate?")) await updateDoc(doc(db, "tickets", id), { collected: false }); };
     
-    window.collect3 = async (id) => { if(confirm("Mark Collected?")) await updateDoc(doc(db3, "tickets", id), { collected: true, collDate: new Date().toLocaleDateString() }); };
-    window.revert3 = async (id) => { await updateDoc(doc(db3, "tickets", id), { collected: false }); };
-    function resetForm3() { $('custName').value = ""; $('phCount').value = 1; $('pbCount').value = 0; $('chCount').value = 0; $('price3').value = 200; $('socketNum').value = ""; }
-    const upSt = () => { $('status').className = navigator.onLine ? "status-bar on" : "status-bar off"; $('status').innerText = navigator.onLine ? "CONNECTED" : "OFFLINE"; };
-    window.addEventListener('online', upSt); window.addEventListener('offline', upSt); upSt();
+    function resetForm() { document.getElementById('custName').value = ""; document.getElementById('custPhone').value = ""; document.getElementById('payStatus').value = "Later"; document.getElementById('phCount').value = 1; document.getElementById('pbCount').value = 0; document.getElementById('chCount').value = 0; document.getElementById('price').value = 200; }
     
-    initApp1(); initProd();
+    const upSt = () => { document.getElementById('status').className = navigator.onLine ? "status-bar on" : "status-bar off"; document.getElementById('status').innerText = navigator.onLine ? "CONNECTED" : "OFFLINE"; };
+    window.addEventListener('online', upSt); window.addEventListener('offline', upSt); upSt(); window.render = render;
   </script>
+</body>
+</html>
+    </textarea>
+
+    <textarea id="code4" style="display:none;">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #222; color: white; padding: 20px; text-align: center; }
+        .master-card { background: #333; padding: 20px; margin: 10px 0; border-radius: 15px; border: 1px solid #444; }
+        h1 { margin: 0 0 20px 0; color: #ffc107; text-transform: uppercase; letter-spacing: 2px; }
+        .big-val { font-size: 32px; font-weight: bold; display: block; margin-top: 5px; }
+        .sub-val { font-size: 14px; color: #aaa; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+        .chart-box { background: #fff; border-radius: 10px; padding: 10px; margin-top: 15px; }
+    </style>
+</head>
+<body>
+    <h1>👑 Master View (Today)</h1>
+    
+    <div class="master-card" style="border-color: #28a745;">
+        <span class="sub-val">TOTAL NET CASH</span>
+        <span class="big-val" style="color: #28a745;" id="m-net">Loading...</span>
+    </div>
+
+    <div class="grid" style="grid-template-columns: 1fr 1fr 1fr;">
+        <div class="master-card">
+            <span class="sub-val">SHOP SALES</span>
+            <span class="big-val" id="m-shop">0</span>
+        </div>
+        <div class="master-card">
+            <span class="sub-val">CHARGING</span>
+            <span class="big-val" id="m-charge">0</span>
+        </div>
+        <div class="master-card" style="border-color: #dc3545;">
+            <span class="sub-val">EXPENSES</span>
+            <span class="big-val" style="color: #dc3545;" id="m-exp">0</span>
+        </div>
+    </div>
+
+    <div class="grid" style="grid-template-columns: 1fr 1fr;">
+        <div class="chart-box">
+            <canvas id="pieChart"></canvas>
+        </div>
+        <div class="chart-box">
+            <canvas id="barChart"></canvas>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // [[INJECT_CONFIG]]
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let shopTotal = 0, chargeTotal = 0, expTotal = 0;
+        let pChart, bChart;
+
+        function updateMaster() {
+            // Net calculation excludes Recorder Sales, but includes Expenses
+            const net = (shopTotal + chargeTotal) - expTotal;
+            document.getElementById('m-net').innerText = "₦" + net.toLocaleString();
+            document.getElementById('m-shop').innerText = "₦" + shopTotal.toLocaleString();
+            document.getElementById('m-charge').innerText = "₦" + chargeTotal.toLocaleString();
+            document.getElementById('m-exp').innerText = "₦" + expTotal.toLocaleString();
+            updateCharts();
+        }
+
+        function updateCharts() {
+            if(pChart) pChart.destroy();
+            if(bChart) bChart.destroy();
+
+            const ctxP = document.getElementById('pieChart').getContext('2d');
+            pChart = new Chart(ctxP, {
+                type: 'pie',
+                data: {
+                    labels: ['Shop', 'Charging', 'Expenses'],
+                    datasets: [{
+                        data: [shopTotal, chargeTotal, expTotal],
+                        backgroundColor: ['#007bff', '#28a745', '#dc3545']
+                    }]
+                },
+                options: { plugins: { title: { display: true, text: 'Today Income Source' } } }
+            });
+
+            const ctxB = document.getElementById('barChart').getContext('2d');
+            bChart = new Chart(ctxB, {
+                type: 'bar',
+                data: {
+                    labels: ['Total Revenue', 'Net Profit'],
+                    datasets: [{
+                        label: 'Amount (₦)',
+                        data: [shopTotal + chargeTotal, (shopTotal + chargeTotal) - expTotal],
+                        backgroundColor: ['#17a2b8', '#ffc107']
+                    }]
+                },
+                options: { plugins: { title: { display: true, text: 'Financial Overview' } } }
+            });
+        }
+
+        const today = new Date().toISOString().split('T')[0];
+
+        // 1. Listen to Shop Sales (Cash only + Debt Payments)
+        onSnapshot(collection(db, "sales"), (snap) => {
+            shopTotal = snap.docs
+                .map(d => d.data())
+                .filter(s => s.date.startsWith(today))
+                .reduce((a, b) => a + (b.total || 0), 0);
+            updateMaster();
+        });
+
+        // 2. Listen to Charging Tickets
+        onSnapshot(collection(db, "tickets"), (snap) => {
+            const todayStr = new Date().toLocaleDateString();
+            chargeTotal = snap.docs
+                .map(d => { const dt = d.data(); return { ...dt, jsDate: dt.ts ? dt.ts.toDate() : new Date() }; })
+                .filter(t => {
+                    const isToday = (t.collDate === todayStr) || (t.jsDate.toLocaleDateString() === todayStr);
+                    const isPaid = t.collected || t.payStatus === 'Now';
+                    return isToday && isPaid;
+                })
+                .reduce((a, b) => a + (b.price || 0), 0);
+            updateMaster();
+        });
+
+        // 3. Listen to Recorder (ONLY FOR EXPENSES)
+        onSnapshot(collection(db, "records"), (snap) => {
+            const recs = snap.docs.map(d => d.data()).filter(r => r.dt.startsWith(today));
+            // Calculate expenses only
+            const recExp = recs.reduce((sum, r) => sum + (r.exp || []).reduce((eSum, e) => eSum + e.a, 0), 0);
+            expTotal = recExp; 
+            updateMaster();
+        });
+
+    </script>
 </body>
   </html>
