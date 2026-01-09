@@ -160,10 +160,16 @@
 
         function loadApps() {
             const wrap = (code) => code.replace('// [[INJECT_CONFIG]]', MAIN_CONFIG);
-            document.getElementById('frame1').srcdoc = wrap(document.getElementById('code1').value);
-            document.getElementById('frame2').srcdoc = wrap(document.getElementById('code2').value);
-            document.getElementById('frame3').srcdoc = wrap(document.getElementById('code3').value);
-            document.getElementById('frame4').srcdoc = wrap(document.getElementById('code4').value);
+            // Ensure elements exist before setting srcdoc
+            const c1 = document.getElementById('code1');
+            const c2 = document.getElementById('code2');
+            const c3 = document.getElementById('code3');
+            const c4 = document.getElementById('code4');
+
+            if(c1) document.getElementById('frame1').srcdoc = wrap(c1.value);
+            if(c2) document.getElementById('frame2').srcdoc = wrap(c2.value);
+            if(c3) document.getElementById('frame3').srcdoc = wrap(c3.value);
+            if(c4) document.getElementById('frame4').srcdoc = wrap(c4.value);
         }
 
         function switchTab(num) {
@@ -181,7 +187,7 @@
         function cCalc() { try { document.getElementById('cScreen').value = eval(document.getElementById('cScreen').value); } catch { document.getElementById('cScreen').value = 'Error'; } }
     </script>
 
-    <textarea id="code1" style="display:none;">
+<textarea id="code1" style="display:none;">
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -189,6 +195,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cloud Shop</title>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', Roboto, sans-serif; background: #f4f6f8; margin: 0; padding: 0; padding-bottom: 80px; user-select: none; }
         .header { background: #0d47a1; color: white; padding: 15px; text-align: center; font-size: 20px; font-weight: bold; position: sticky; top: 0; z-index: 50; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display:flex; justify-content:center; align-items:center; gap:10px;}
@@ -233,6 +241,8 @@
         .summary-box { background: #e3f2fd; padding: 10px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; font-size: 13px; }
         .summary-item { text-align: center; }
         .summary-val { display: block; font-weight: bold; font-size: 15px; }
+        .report-bar { display: flex; gap: 5px; background: #eee; padding: 10px; border-radius: 8px; overflow-x: auto; margin-bottom:10px; }
+        .report-btn { background: #333; color: white; border: none; padding: 5px 10px; border-radius: 5px; font-size: 12px; white-space: nowrap; cursor: pointer; flex: 1; }
     </style>
 </head>
 <body>
@@ -322,19 +332,23 @@
 
         <div id="sec-stock" class="section">
             <div class="card">
-                <h3>📦 Inventory (Cloud)</h3>
+                <h3>📦 Inventory & Tracking</h3>
                 <button class="btn-blue" onclick="openProdModal()">+ New Product</button>
                 <div id="stockList" style="margin-top:10px;"></div>
                 <div style="background:#e8f5e9; color:#2e7d32; padding:10px; margin-top:10px; font-weight:bold; text-align:center; border-radius:8px;">
-                    Total Inventory Worth: <span id="grandStockTotal">Loading...</span>
+                    Total Expected Revenue: <span id="grandStockTotal">Loading...</span>
                 </div>
             </div>
         </div>
 
         <div id="sec-hist" class="section">
             <div class="card">
-                <h3>📜 General Sales History</h3>
-                <p style="font-size:11px; color:#666;">Shows last 50 transactions (Cash & Debt Payments)</p>
+                <h3>📜 Reports & Sales History</h3>
+                <div class="report-bar">
+                    <button class="report-btn" onclick="runIf(window.genReport, 'day')">📄 Daily PDF</button>
+                    <button class="report-btn" onclick="runIf(window.genReport, 'month')">📄 Monthly PDF</button>
+                    <button class="report-btn" onclick="runIf(window.genReport, 'year')">📄 Yearly PDF</button>
+                </div>
                 <div id="mainHistList" style="margin-top:10px;"></div>
             </div>
         </div>
@@ -362,7 +376,8 @@
             <input type="hidden" id="p-id">
             <input type="text" id="p-name" placeholder="Name">
             <input type="number" id="p-price" placeholder="Price">
-            <input type="number" id="p-stock" placeholder="Stock Qty">
+            <label style="font-size:12px; color:#555;">Initial Opening Stock:</label>
+            <input type="number" id="p-stock" placeholder="Initial Qty (Fixed)">
             <div style="display:flex; gap:5px; margin-bottom:10px;">
                 <input type="text" id="p-barcode" placeholder="Barcode (Optional)" style="margin:0;">
                 <button style="width:60px; background:#666; margin:0;" onclick="window.startScan('edit')">📷</button>
@@ -446,7 +461,6 @@
     
     function closeModals() { document.querySelectorAll('.modal').forEach(m=>m.style.display='none'); }
     function openCreditModal() { document.getElementById('mod-credit').style.display='flex'; }
-    // MODIFIED: Open Product Modal with cleared fields
     function openProdModal() { 
         document.getElementById('p-id').value = ''; 
         document.getElementById('p-name').value = ''; 
@@ -467,7 +481,7 @@
 
     // SCANNER LOGIC
     let html5QrcodeScanner;
-    let scanTarget = 'search'; // 'search' or 'edit'
+    let scanTarget = 'search'; 
 
     window.startScan = function(target) {
         if(typeof Html5QrcodeScanner === 'undefined') {
@@ -506,7 +520,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, setDoc, query, orderBy, limit } 
+    import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, setDoc, query, orderBy, limit, getDocs } 
     from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     // [[INJECT_CONFIG]]
@@ -516,18 +530,29 @@
         const db = getFirestore(app);
         
         let products = [], sales = [], debtors = [], trash = [], cart = [];
+        let allSalesForReports = []; // Store ALL sales for PDF generation
 
         onSnapshot(collection(db, "products"), (snapshot) => { 
             products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
             window.renderProducts(); window.renderStock(); window.renderDash(); 
-            // Sound Alert
             if(products.some(p => p.stock <= 5)) {
                 const a = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
                 a.volume = 0.2; a.play().catch(e=>{});
             }
         });
+        
+        // Listen to RECENT sales for UI
         const salesQ = query(collection(db, "sales"), orderBy("date", "desc"), limit(50));
-        onSnapshot(salesQ, (snapshot) => { sales = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); window.renderHistory(); window.renderDash(); });
+        onSnapshot(salesQ, (snapshot) => { 
+            sales = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
+            window.renderHistory(); window.renderDash(); 
+        });
+
+        // Listen to ALL sales for Reports (simplified, ideally use server or specific query for performance)
+        onSnapshot(collection(db, "sales"), (snapshot) => {
+            allSalesForReports = snapshot.docs.map(doc => doc.data());
+        });
+
         const debtorsQ = query(collection(db, "debtors"), orderBy("date", "desc"));
         onSnapshot(debtorsQ, (snapshot) => { debtors = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); window.renderDebtors(); window.renderDash(); });
         onSnapshot(collection(db, "trash"), (snapshot) => { trash = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); window.renderTrash(); window.renderDash(); });
@@ -561,29 +586,18 @@
             document.getElementById('mod-lowstock').style.display = 'flex';
         }
 
-        // UPDATED: Render Products to check Barcode too
         window.renderProducts = () => {
             const q = document.getElementById('search').value.toLowerCase();
             const div = document.getElementById('prodList'); div.innerHTML = '';
-            
-            // Check for EXACT barcode match first to auto-select
             const exactMatchIndex = products.findIndex(p => p.barcode === q);
-            
             products.forEach((p, i) => {
-                // Search by Name OR Barcode
                 if(p.name.toLowerCase().includes(q) || (p.barcode && p.barcode === q)) {
                     let color = p.stock < 5 ? '#fff3cd' : 'white';
-                    // If scanning, highlight specifically
                     if(p.barcode === q) color = '#d1e7dd'; 
-                    
                     div.innerHTML += `<div onclick="window.selProd(${i})" style="padding:10px; border-bottom:1px solid #eee; background:${color}; cursor:pointer;"><b>${p.name}</b> <small>(Stock: ${p.stock})</small><div style="float:right;">₦${p.price}</div></div>`;
                 }
             });
-
-            // Auto Select if exact barcode scan
-            if(exactMatchIndex !== -1 && q.length > 3) {
-                 window.selProd(exactMatchIndex);
-            }
+            if(exactMatchIndex !== -1 && q.length > 3) { window.selProd(exactMatchIndex); }
         };
 
         window.selProd = (i) => { document.getElementById('selIndex').value = i; document.getElementById('qty').focus(); }
@@ -638,10 +652,14 @@
         window.checkout = async (type) => {
             if(cart.length === 0) return;
             cart.forEach(async (c) => { const newStock = c.stock - c.qty; const pRef = doc(db, "products", c.id); await updateDoc(pRef, { stock: newStock }); });
-            const total = cart.reduce((a,b) => a + b.sub, 0); const desc = cart.map(c => `${c.name}(x${c.qty})`).join(', '); const date = new Date().toISOString();
+            const total = cart.reduce((a,b) => a + b.sub, 0); 
+            // Store details for reporting: array of {name, qty, price}
+            const itemsArr = cart.map(c => ({ name: c.name, qty: c.qty, price: c.price, sub: c.sub }));
+            const desc = cart.map(c => `${c.name}(x${c.qty})`).join(', '); 
+            const date = new Date().toISOString();
 
             if(type === 'cash') {
-                await addDoc(collection(db, "sales"), { date, desc, total, type: 'Cash' }); alert("Cash Sale Synced!");
+                await addDoc(collection(db, "sales"), { date, desc, items: itemsArr, total, type: 'Cash' }); alert("Cash Sale Synced!");
             } else {
                 const name = document.getElementById('c-name').value;
                 if(!name) { alert("Enter Name"); return; }
@@ -726,15 +744,24 @@
         window.restore = async (id) => { const t = trash.find(x => x.id === id); const { deletedAt, ...rest } = t; await setDoc(doc(db, "debtors", id), rest); await deleteDoc(doc(db, "trash", id)); }
         window.permDel = async (id) => { if(confirm("Permanently delete?")) await deleteDoc(doc(db, "trash", id)); }
         
+        // --- NEW: Stock & Reports Logic ---
         window.renderStock = () => { 
             const div = document.getElementById('stockList'); div.innerHTML = ''; 
-            let grandTotal = 0;
+            let grandExpTotal = 0;
             products.forEach((p, i) => { 
-                const val = p.price * p.stock;
-                grandTotal += val;
+                const init = p.initStock || p.stock; // fallback to current if init missing
+                const sold = Math.max(0, init - p.stock);
+                const expVal = init * p.price;
+                const actVal = sold * p.price;
+                
+                grandExpTotal += expVal;
+
                 div.innerHTML += `
                 <div class="list-item">
-                    <div><b>${p.name}</b><br><small>₦${p.price} | Stock: ${p.stock} | Val: ₦${val.toLocaleString()}</small></div>
+                    <div>
+                        <b>${p.name}</b> <small>(Init: ${init} | Cur: ${p.stock})</small><br>
+                        <span style="font-size:11px; color:#555;">Sold: ${sold} | Exp.Rev: ₦${expVal.toLocaleString()}</span>
+                    </div>
                     <div style="display:flex; gap:5px;">
                         <button class="btn-blue btn-tbl" onclick="window.addStock('${p.id}')">Refill</button>
                         <button class="btn-orange btn-tbl" onclick="window.editStock('${p.id}')">Edit</button>
@@ -742,24 +769,31 @@
                     </div>
                 </div>`; 
             });
-            document.getElementById('grandStockTotal').innerText = "₦" + grandTotal.toLocaleString();
+            document.getElementById('grandStockTotal').innerText = "₦" + grandExpTotal.toLocaleString();
         }
 
-        window.deleteProduct = async (id) => {
-            if(confirm("Are you sure you want to delete this product?")) {
-                await deleteDoc(doc(db, "products", id));
-            }
-        }
+        window.deleteProduct = async (id) => { if(confirm("Are you sure you want to delete this product?")) { await deleteDoc(doc(db, "products", id)); } }
 
-        window.addStock = async (id) => { let n = prompt("Add Qty:"); if(n) { const p = products.find(x => x.id === id); await updateDoc(doc(db, "products", id), { stock: p.stock + parseInt(n) }); } }
+        // Updated Refill: Ask if adding new batch (updating Init)
+        window.addStock = async (id) => { 
+            let n = prompt("Add Qty:"); 
+            if(n) { 
+                const p = products.find(x => x.id === id); 
+                const add = parseInt(n);
+                // When refilling, we assume it's new stock arriving, so both Init and Current increase
+                await updateDoc(doc(db, "products", id), { 
+                    stock: p.stock + add,
+                    initStock: (p.initStock || p.stock) + add 
+                }); 
+            } 
+        }
         
-        // MODIFIED: Edit Stock -> Opens Full Edit Modal
         window.editStock = async (id) => { 
             const p = products.find(x => x.id === id);
             document.getElementById('p-id').value = id;
             document.getElementById('p-name').value = p.name;
             document.getElementById('p-price').value = p.price;
-            document.getElementById('p-stock').value = p.stock;
+            document.getElementById('p-stock').value = p.initStock || p.stock; // Edit INITIAL here
             document.getElementById('p-barcode').value = p.barcode || "";
             document.getElementById('mod-prod').style.display='flex';
         }
@@ -768,30 +802,79 @@
             const id = document.getElementById('p-id').value;
             const name = document.getElementById('p-name').value;
             const price = parseInt(document.getElementById('p-price').value);
-            const stock = parseInt(document.getElementById('p-stock').value);
+            const stock = parseInt(document.getElementById('p-stock').value); // This becomes INIT and CURRENT
             const barcode = document.getElementById('p-barcode').value;
 
             if(!name || !price) return alert("Name and Price required!");
 
             if(id) {
-                // Update Existing
-                await updateDoc(doc(db, "products", id), { name, price, stock, barcode });
+                // When fully editing, we reset the baseline (Init) to what is entered
+                await updateDoc(doc(db, "products", id), { name, price, stock: stock, initStock: stock, barcode });
             } else {
-                // Create New
                 const exists = products.find(p => p.name.trim().toLowerCase() === name.trim().toLowerCase());
                 if(exists) { alert("Error: Product already exists!"); return; }
-                await addDoc(collection(db, "products"), { name, price, stock, barcode });
+                await addDoc(collection(db, "products"), { name, price, stock: stock, initStock: stock, barcode });
             }
-
             window.closeModals(); 
-            // Clear
-            document.getElementById('p-id').value = '';
-            document.getElementById('p-name').value = '';
-            document.getElementById('p-price').value = '';
-            document.getElementById('p-stock').value = '';
-            document.getElementById('p-barcode').value = '';
         }
         
+        // --- PDF REPORT GENERATION ---
+        window.genReport = (type) => {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            const now = new Date();
+            let filterDate = "";
+            let title = "";
+
+            if(type === 'day') {
+                filterDate = now.toISOString().split('T')[0];
+                title = `Daily Sales Report (${filterDate})`;
+            } else if (type === 'month') {
+                filterDate = now.toISOString().slice(0, 7); // YYYY-MM
+                title = `Monthly Sales Report (${filterDate})`;
+            } else if (type === 'year') {
+                filterDate = now.getFullYear().toString();
+                title = `Yearly Sales Report (${filterDate})`;
+            }
+
+            // Aggregate Data
+            const filteredSales = allSalesForReports.filter(s => s.date.startsWith(filterDate) && s.type === 'Cash' && s.items);
+            
+            // Map product -> { qty, revenue }
+            const reportMap = {};
+            let grandTotal = 0;
+
+            filteredSales.forEach(s => {
+                s.items.forEach(item => {
+                    if(!reportMap[item.name]) reportMap[item.name] = { qty: 0, total: 0, price: item.price };
+                    reportMap[item.name].qty += item.qty;
+                    reportMap[item.name].total += item.sub;
+                    grandTotal += item.sub;
+                });
+            });
+
+            // Table Data
+            const body = Object.keys(reportMap).map(name => [
+                name,
+                reportMap[name].price,
+                reportMap[name].qty,
+                "N" + reportMap[name].total.toLocaleString()
+            ]);
+
+            doc.text("STARBITE SUPER APP", 14, 15);
+            doc.text(title, 14, 25);
+            
+            doc.autoTable({
+                head: [['Product', 'Unit Price', 'Qty Sold', 'Total Sales']],
+                body: body,
+                startY: 35,
+                foot: [['', '', 'GRAND TOTAL', "N" + grandTotal.toLocaleString()]]
+            });
+
+            doc.save(`Starbite_Report_${type}.pdf`);
+        }
+
         window.renderHistory = () => { 
             const div = document.getElementById('mainHistList'); div.innerHTML = ''; 
             sales.forEach(s => { 
@@ -812,9 +895,9 @@
 </script>
 </body>
 </html>
-    </textarea>
+</textarea>
 
-    <textarea id="code2" style="display:none;">
+<textarea id="code2" style="display:none;">
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1161,9 +1244,9 @@
 </script>
 </body>
 </html>
-    </textarea>
+</textarea>
 
-    <textarea id="code3" style="display:none;">
+<textarea id="code3" style="display:none;">
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1523,9 +1606,9 @@
   </script>
 </body>
 </html>
-    </textarea>
+</textarea>
 
-    <textarea id="code4" style="display:none;">
+<textarea id="code4" style="display:none;">
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1663,5 +1746,9 @@
         });
 
     </script>
+</body>
+</html>
+</textarea>
+
 </body>
     </html>
