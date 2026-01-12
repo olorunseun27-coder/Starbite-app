@@ -77,14 +77,14 @@
             <input type="password" id="pinInput" class="login-input" placeholder="PIN" maxlength="4">
             <button class="login-btn" onclick="checkLogin()">UNLOCK</button>
             <div id="loginError" class="login-error">Incorrect PIN</div>
-            <p style="font-size:10px; color:#555; margin-top:15px;">Default: 1111 (Admin) or 2222 (Staff)</p>
+            <p style="font-size:10px; color:#555; margin-top:15px;"></p>
         </div>
     </div>
 
     <div class="app-nav" id="mainNav">
         <button class="nav-btn active" onclick="switchTab(1)">☁️ Shop</button>
         <button class="nav-btn" onclick="switchTab(2)">📝 Recorder</button>
-        <button class="nav-btn" onclick="switchTab(3)">⚡️charging point</button>
+        <button class="nav-btn" onclick="switchTab(3)">⚡️ Charging</button>
         <button class="nav-btn" onclick="switchTab(4)" style="color:#ffc107;">👑 Master</button>
         <button class="nav-btn" onclick="toggleDark()" style="max-width:40px;">🌗</button>
     </div>
@@ -139,15 +139,18 @@
             "2222": { name: "Staff", role: "staff" }
         };
 
+        let currentUserRole = 'staff'; 
+
         function checkLogin() {
             const pin = document.getElementById('pinInput').value;
             if (USERS[pin]) {
+                currentUserRole = USERS[pin].role; 
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('mainNav').style.visibility = 'visible';
                 document.getElementById('mainContainer').style.visibility = 'visible';
                 document.getElementById('calc-icon').style.display = 'flex';
                 loadApps();
-                alert(`Welcome back, ${USERS[pin].name}!`);
+                alert(`Welcome back, ${USERS[pin].name}! (${currentUserRole.toUpperCase()} Mode)`);
             } else {
                 document.getElementById('loginError').style.display = 'block';
                 document.getElementById('pinInput').value = '';
@@ -159,7 +162,10 @@
         });
 
         function loadApps() {
-            const wrap = (code) => code.replace('// [[INJECT_CONFIG]]', MAIN_CONFIG);
+            // INJECT CONFIG AND USER ROLE INTO SUB-APPS
+            const roleInject = `const USER_ROLE = "${currentUserRole}";`;
+            const wrap = (code) => code.replace('// [[INJECT_CONFIG]]', MAIN_CONFIG + "\n" + roleInject);
+
             const c1 = document.getElementById('code1');
             const c2 = document.getElementById('code2');
             const c3 = document.getElementById('code3');
@@ -172,6 +178,12 @@
         }
 
         function switchTab(num) {
+            // SECURITY: BLOCK MASTER APP FOR STAFF
+            if (num === 4 && currentUserRole === 'staff') {
+                alert("⛔ ACCESS DENIED: Admin Only.");
+                return;
+            }
+
             document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('iframe').forEach(fr => fr.classList.remove('active'));
             const btnIndex = num - 1; 
@@ -197,6 +209,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <style>
+        /* SECURITY CSS */
+        body.is-staff .admin-only { display: none !important; }
+        
         body { font-family: 'Segoe UI', Roboto, sans-serif; background: #f4f6f8; margin: 0; padding: 0; padding-bottom: 80px; user-select: none; }
         .header { background: #0d47a1; color: white; padding: 15px; text-align: center; font-size: 20px; font-weight: bold; position: sticky; top: 0; z-index: 50; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display:flex; justify-content:center; align-items:center; gap:10px;}
         .live-dot { height: 10px; width: 10px; background-color: #00e676; border-radius: 50%; display: inline-block; box-shadow: 0 0 5px #00e676; }
@@ -254,11 +269,11 @@
         
         <div id="sec-dash" class="section active-section">
             <div class="dash-grid">
-                <div class="dash-card">
+                <div class="dash-card admin-only">
                     <span class="dash-num text-green" id="d-today">Loading...</span>
                     <span class="dash-label">Today's Cash</span>
                 </div>
-                <div class="dash-card">
+                <div class="dash-card admin-only">
                     <span class="dash-num text-red" id="d-owed">Loading...</span>
                     <span class="dash-label">Total Debt Owed</span>
                 </div>
@@ -266,12 +281,12 @@
                     <span class="dash-num text-blue" id="d-stock">0</span>
                     <span class="dash-label">Low Stock Items (Tap)</span>
                 </div>
-                <div class="dash-card" onclick="nav('sec-trash', document.getElementById('btn-trash'))">
+                <div class="dash-card admin-only" onclick="nav('sec-trash', document.getElementById('btn-trash'))">
                     <span class="dash-num" id="d-trash">0</span>
                     <span class="dash-label">View Trash 🗑️</span>
                 </div>
             </div>
-            <div style="text-align:center; margin-top:20px; color:#777; font-size:12px;">Starbite- good service is our joy!</div>
+            <div style="text-align:center; margin-top:20px; color:#777; font-size:12px;">Data synced with Google Cloud</div>
         </div>
 
         <div id="sec-sell" class="section">
@@ -308,7 +323,7 @@
             <div class="card">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                     <h3 style="margin:0;">📒 Debt Records</h3>
-                    <button class="btn-dark btn-tbl" style="font-size:14px; padding:8px;" onclick="openManualDebt()">+ Add Old Debt</button>
+                    <button class="btn-dark btn-tbl admin-only" style="font-size:14px; padding:8px;" onclick="openManualDebt()">+ Add Old Debt</button>
                 </div>
                 <input type="text" id="debtSearch" placeholder="🔍 Search name..." onkeyup="runIf(window.renderDebtors)">
                 <div class="table-responsive">
@@ -316,9 +331,9 @@
                         <thead>
                             <tr>
                                 <th class="col-desc">Name & Items</th>
-                                <th>Total</th>
+                                <th class="admin-only">Total</th>
                                 <th>Paid</th>
-                                <th>Balance</th>
+                                <th class="admin-only">Balance</th>
                                 <th>Status</th>
                                 <th style="text-align:center">Actions</th>
                             </tr>
@@ -332,9 +347,9 @@
         <div id="sec-stock" class="section">
             <div class="card">
                 <h3>📦 Inventory & Tracking</h3>
-                <button class="btn-blue" onclick="openProdModal()">+ New Product</button>
+                <button class="btn-blue admin-only" onclick="openProdModal()">+ New Product</button>
                 <div id="stockList" style="margin-top:10px;"></div>
-                <div style="background:#e8f5e9; color:#2e7d32; padding:10px; margin-top:10px; font-weight:bold; text-align:center; border-radius:8px;">
+                <div class="admin-only" style="background:#e8f5e9; color:#2e7d32; padding:10px; margin-top:10px; font-weight:bold; text-align:center; border-radius:8px;">
                     Total Expected Revenue: <span id="grandStockTotal">Loading...</span>
                 </div>
             </div>
@@ -343,7 +358,7 @@
         <div id="sec-hist" class="section">
             <div class="card">
                 <h3>📜 Reports & Sales History</h3>
-                <div class="report-bar">
+                <div class="report-bar admin-only">
                     <button class="report-btn" onclick="runIf(window.genReport, 'day')">📄 Daily PDF</button>
                     <button class="report-btn" onclick="runIf(window.genReport, 'month')">📄 Monthly PDF</button>
                     <button class="report-btn" onclick="runIf(window.genReport, 'year')">📄 Yearly PDF</button>
@@ -415,9 +430,9 @@
             <h3 style="margin-top:0;">📜 Customer Ledger</h3>
             <h4 id="h-name" style="color:#0d47a1; margin-top:0; border-bottom:1px solid #eee; padding-bottom:5px;"></h4>
             <div class="summary-box">
-                <div class="summary-item"><span>Total Debt</span><span class="summary-val" id="h-total">0</span></div>
+                <div class="summary-item admin-only"><span>Total Debt</span><span class="summary-val" id="h-total">0</span></div>
                 <div class="summary-item"><span>Paid</span><span class="summary-val text-green" id="h-paid">0</span></div>
-                <div class="summary-item"><span>Balance</span><span class="summary-val text-red" id="h-bal">0</span></div>
+                <div class="summary-item admin-only"><span>Balance</span><span class="summary-val text-red" id="h-bal">0</span></div>
             </div>
             <p style="font-size:12px; font-weight:bold; margin-bottom:5px;">Payment History:</p>
             <table class="ledger-table"><thead><tr><th>Date</th><th>Method</th><th style="text-align:right;">Amount</th></tr></thead><tbody id="h-list"></tbody></table>
@@ -524,30 +539,29 @@
 
     // [[INJECT_CONFIG]]
 
+    // APPLY SECURITY
+    if(typeof USER_ROLE !== 'undefined' && USER_ROLE === 'staff') {
+        document.body.classList.add('is-staff');
+    }
+
     try {
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         
         let products = [], sales = [], debtors = [], trash = [], cart = [];
-        let allSalesForReports = []; // Store ALL sales for PDF generation
+        let allSalesForReports = []; 
 
         onSnapshot(collection(db, "products"), (snapshot) => { 
             products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
             window.renderProducts(); window.renderStock(); window.renderDash(); 
-            if(products.some(p => p.stock <= 5)) {
-                const a = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
-                a.volume = 0.2; a.play().catch(e=>{});
-            }
         });
         
-        // Listen to RECENT sales for UI
         const salesQ = query(collection(db, "sales"), orderBy("date", "desc"), limit(50));
         onSnapshot(salesQ, (snapshot) => { 
             sales = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
             window.renderHistory(); window.renderDash(); 
         });
 
-        // Listen to ALL sales for Reports (simplified, ideally use server or specific query for performance)
         onSnapshot(collection(db, "sales"), (snapshot) => {
             allSalesForReports = snapshot.docs.map(doc => doc.data());
         });
@@ -652,7 +666,6 @@
             if(cart.length === 0) return;
             cart.forEach(async (c) => { const newStock = c.stock - c.qty; const pRef = doc(db, "products", c.id); await updateDoc(pRef, { stock: newStock }); });
             const total = cart.reduce((a,b) => a + b.sub, 0); 
-            // Store details for reporting: array of {name, qty, price}
             const itemsArr = cart.map(c => ({ name: c.name, qty: c.qty, price: c.price, sub: c.sub }));
             const desc = cart.map(c => `${c.name}(x${c.qty})`).join(', '); 
             const date = new Date().toISOString();
@@ -677,7 +690,7 @@
                     const rem = d.totalDebt - paid;
                     let status = rem <= 0 ? 'Full' : (paid > 0 ? 'Part' : 'Unpaid');
                     let badge = status === 'Full' ? 'bg-full' : (status === 'Part' ? 'bg-part' : 'bg-over');
-                    tbody.innerHTML += `<tr><td class="col-desc"><b style="font-size:15px;">${d.name}</b><small style="color:#666; display:block; margin-top:4px; font-style:italic;">${d.desc}</small><small style="color:#999;">${new Date(d.date).toLocaleDateString()}</small></td><td>₦${d.totalDebt.toLocaleString()}</td><td class="text-green">₦${paid.toLocaleString()}</td><td class="text-red" style="font-weight:bold;">₦${rem.toLocaleString()}</td><td><span class="badge ${badge}">${status}</span></td><td style="text-align:center;">${rem > 0 ? `<button class="btn-green btn-tbl" onclick="window.openPay('${d.id}')">Pay</button>` : ''}<button class="btn-orange btn-tbl" onclick="window.editDebt('${d.id}')">Edit</button><button class="btn-blue btn-tbl" onclick="window.viewHist('${d.id}')">📜 History</button><button class="btn-red btn-tbl" onclick="window.moveToTrash('${d.id}')">X</button></td></tr>`;
+                    tbody.innerHTML += `<tr><td class="col-desc"><b style="font-size:15px;">${d.name}</b><small style="color:#666; display:block; margin-top:4px; font-style:italic;">${d.desc}</small><small style="color:#999;">${new Date(d.date).toLocaleDateString()}</small></td><td class="admin-only">₦${d.totalDebt.toLocaleString()}</td><td class="text-green">₦${paid.toLocaleString()}</td><td class="text-red admin-only" style="font-weight:bold;">₦${rem.toLocaleString()}</td><td><span class="badge ${badge}">${status}</span></td><td style="text-align:center;">${rem > 0 ? `<button class="btn-green btn-tbl" onclick="window.openPay('${d.id}')">Pay</button>` : ''}<button class="btn-orange btn-tbl admin-only" onclick="window.editDebt('${d.id}')">Edit</button><button class="btn-blue btn-tbl" onclick="window.viewHist('${d.id}')">📜 History</button><button class="btn-red btn-tbl admin-only" onclick="window.moveToTrash('${d.id}')">X</button></td></tr>`;
                 }
             });
         }
@@ -743,28 +756,25 @@
         window.restore = async (id) => { const t = trash.find(x => x.id === id); const { deletedAt, ...rest } = t; await setDoc(doc(db, "debtors", id), rest); await deleteDoc(doc(db, "trash", id)); }
         window.permDel = async (id) => { if(confirm("Permanently delete?")) await deleteDoc(doc(db, "trash", id)); }
         
-        // --- NEW: Stock & Reports Logic ---
         window.renderStock = () => { 
             const div = document.getElementById('stockList'); div.innerHTML = ''; 
             let grandExpTotal = 0;
             products.forEach((p, i) => { 
-                const init = p.initStock || p.stock; // fallback to current if init missing
+                const init = p.initStock || p.stock; 
                 const sold = Math.max(0, init - p.stock);
                 const expVal = init * p.price;
-                const actVal = sold * p.price;
-                
                 grandExpTotal += expVal;
 
                 div.innerHTML += `
                 <div class="list-item">
                     <div>
                         <b>${p.name}</b> <small>(Init: ${init} | Cur: ${p.stock})</small><br>
-                        <span style="font-size:11px; color:#555;">Sold: ${sold} | Exp.Rev: ₦${expVal.toLocaleString()}</span>
+                        <span class="admin-only" style="font-size:11px; color:#555;">Sold: ${sold} | Exp.Rev: ₦${expVal.toLocaleString()}</span>
                     </div>
                     <div style="display:flex; gap:5px;">
                         <button class="btn-blue btn-tbl" onclick="window.addStock('${p.id}')">Refill</button>
-                        <button class="btn-orange btn-tbl" onclick="window.editStock('${p.id}')">Edit</button>
-                        <button class="btn-red btn-tbl" onclick="window.deleteProduct('${p.id}')">Del</button>
+                        <button class="btn-orange btn-tbl admin-only" onclick="window.editStock('${p.id}')">Edit</button>
+                        <button class="btn-red btn-tbl admin-only" onclick="window.deleteProduct('${p.id}')">Del</button>
                     </div>
                 </div>`; 
             });
@@ -773,13 +783,11 @@
 
         window.deleteProduct = async (id) => { if(confirm("Are you sure you want to delete this product?")) { await deleteDoc(doc(db, "products", id)); } }
 
-        // Updated Refill: Ask if adding new batch (updating Init)
         window.addStock = async (id) => { 
             let n = prompt("Add Qty:"); 
             if(n) { 
                 const p = products.find(x => x.id === id); 
                 const add = parseInt(n);
-                // When refilling, we assume it's new stock arriving, so both Init and Current increase
                 await updateDoc(doc(db, "products", id), { 
                     stock: p.stock + add,
                     initStock: (p.initStock || p.stock) + add 
@@ -792,7 +800,7 @@
             document.getElementById('p-id').value = id;
             document.getElementById('p-name').value = p.name;
             document.getElementById('p-price').value = p.price;
-            document.getElementById('p-stock').value = p.initStock || p.stock; // Edit INITIAL here
+            document.getElementById('p-stock').value = p.initStock || p.stock; 
             document.getElementById('p-barcode').value = p.barcode || "";
             document.getElementById('mod-prod').style.display='flex';
         }
@@ -801,13 +809,12 @@
             const id = document.getElementById('p-id').value;
             const name = document.getElementById('p-name').value;
             const price = parseInt(document.getElementById('p-price').value);
-            const stock = parseInt(document.getElementById('p-stock').value); // This becomes INIT and CURRENT
+            const stock = parseInt(document.getElementById('p-stock').value); 
             const barcode = document.getElementById('p-barcode').value;
 
             if(!name || !price) return alert("Name and Price required!");
 
             if(id) {
-                // When fully editing, we reset the baseline (Init) to what is entered
                 await updateDoc(doc(db, "products", id), { name, price, stock: stock, initStock: stock, barcode });
             } else {
                 const exists = products.find(p => p.name.trim().toLowerCase() === name.trim().toLowerCase());
@@ -817,11 +824,9 @@
             window.closeModals(); 
         }
         
-        // --- PDF REPORT GENERATION ---
         window.genReport = (type) => {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
-            
             const now = new Date();
             let filterDate = "";
             let title = "";
@@ -830,17 +835,14 @@
                 filterDate = now.toISOString().split('T')[0];
                 title = `Daily Sales Report (${filterDate})`;
             } else if (type === 'month') {
-                filterDate = now.toISOString().slice(0, 7); // YYYY-MM
+                filterDate = now.toISOString().slice(0, 7); 
                 title = `Monthly Sales Report (${filterDate})`;
             } else if (type === 'year') {
                 filterDate = now.getFullYear().toString();
                 title = `Yearly Sales Report (${filterDate})`;
             }
 
-            // Aggregate Data
             const filteredSales = allSalesForReports.filter(s => s.date.startsWith(filterDate) && s.type === 'Cash' && s.items);
-            
-            // Map product -> { qty, revenue }
             const reportMap = {};
             let grandTotal = 0;
 
@@ -853,7 +855,6 @@
                 });
             });
 
-            // Table Data
             const body = Object.keys(reportMap).map(name => [
                 name,
                 reportMap[name].price,
@@ -880,7 +881,7 @@
                 div.innerHTML += `
                 <div class="list-item">
                     <div><b>₦${s.total.toLocaleString()}</b><br><small>${s.desc} (${s.type})</small><br><span style="font-size:10px; color:#999">${new Date(s.date).toLocaleString()}</span></div>
-                    <button class="btn-red btn-tbl" onclick="window.deleteSale('${s.id}')">Del</button>
+                    <button class="btn-red btn-tbl admin-only" onclick="window.deleteSale('${s.id}')">Del</button>
                 </div>`; 
             }); 
         }
@@ -906,6 +907,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
   <style>
+    /* SECURITY */
+    body.is-staff .admin-only { display: none !important; }
     #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); padding: 10px 20px; border-radius: 8px; color: white; z-index: 1000; opacity: 0; visibility: hidden; transition: 0.3s; }
     #toast.show { opacity: 1; visibility: visible; }
     .s { background:#28a745; } .e { background:#dc3545; }
@@ -915,11 +918,11 @@
 <body class="bg-gray-50 text-gray-800 min-h-screen p-4">
   <div class="max-w-5xl mx-auto bg-white shadow-lg rounded-2xl p-6">
     <div class="flex justify-between items-center mb-4">
-        <h1 class="text-2xl font-bold">STARBITE PRODUCTION RECORDER</h1>
-        <button onclick="openProdSet()" class="bg-gray-700 text-white px-3 py-1 rounded text-sm">⚙️ Products</button>
+        <h1 class="text-2xl font-bold">STARBITE RECORDER</h1>
+        <button onclick="openProdSet()" class="bg-gray-700 text-white px-3 py-1 rounded text-sm admin-only">⚙️ Products</button>
     </div>
     
-    <div class="bg-indigo-100 rounded-xl p-3 mb-4 border-2 border-indigo-500">
+    <div class="bg-indigo-100 rounded-xl p-3 mb-4 border-2 border-indigo-500 admin-only">
         <h3 class="font-bold text-indigo-800">1. Capital & Recovery (Synced)</h3>
         <div class="grid grid-cols-2 gap-3 text-xs mb-2">
             <div class="bg-white p-2 rounded"><label>Production Capital (₦)</label><input id="pCap" type="number" class="w-full border p-1 rounded" oninput="saveCap()"></div>
@@ -961,12 +964,12 @@
     </div>
 
     <div class="flex flex-wrap gap-2 text-xs items-center">
-      <button onclick="save()" id="saveBtn" class="bg-blue-600 text-white px-3 py-1 rounded shadow">Save</button>
+      <button onclick="save()" id="saveBtn" type="button" class="bg-blue-600 text-white px-4 py-2 rounded shadow text-base font-bold">SAVE RECORD</button>
       <button onclick="editMode(false)" id="cancelBtn" class="hidden bg-gray-500 text-white px-3 py-1 rounded">Cancel</button>
-      <button onclick="$('hist').classList.toggle('hidden')" class="bg-green-600 text-white px-3 py-1 rounded">History</button>
-      <button onclick="expCSV()" class="bg-yellow-500 text-white px-3 py-1 rounded">CSV</button>
-      <button onclick="wipe()" class="bg-red-500 text-white px-3 py-1 rounded">Clear All</button>
-      <div class="ml-auto flex gap-1">
+      <button onclick="$('hist').classList.toggle('hidden')" class="bg-green-600 text-white px-3 py-1 rounded admin-only">History</button>
+      <button onclick="expCSV()" class="bg-yellow-500 text-white px-3 py-1 rounded admin-only">CSV</button>
+      <button onclick="wipe()" class="bg-red-500 text-white px-3 py-1 rounded admin-only">Clear All</button>
+      <div class="ml-auto flex gap-1 admin-only">
         <select id="repType" class="p-1 border rounded" onchange="uiDate()">
           <option value="monthly">Monthly</option><option value="yearly">Yearly</option><option value="range">Range</option>
         </select>
@@ -1004,6 +1007,11 @@
 
   // [[INJECT_CONFIG]]
 
+  // APPLY SECURITY
+  if(typeof USER_ROLE !== 'undefined' && USER_ROLE === 'staff') {
+      document.body.classList.add('is-staff');
+  }
+
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
@@ -1019,13 +1027,9 @@
     setNow(); uiDate();
 
     onSnapshot(doc(db, "settings", "products"), (d) => {
-        if(d.exists() && d.data().list) {
-            P = d.data().list;
-        } else {
-            setDoc(doc(db, "settings", "products"), { list: P });
-        }
-        renderProdGrid();
-        renderProdSettings();
+        if(d.exists() && d.data().list) { P = d.data().list; } 
+        else { setDoc(doc(db, "settings", "products"), { list: P }); }
+        renderProdGrid(); renderProdSettings();
         $('hHead').innerHTML = `<th>Date</th>${P.map(p => `<th>${p.n}</th>`).join('')}<th>Rem</th><th>Prod</th><th>Misc</th><th>Tot</th><th>Exp</th><th>Prof</th><th>Var</th><th>Act</th>`;
         render(); 
     });
@@ -1052,39 +1056,28 @@
   }
 
   window.openProdSet = function() { $('prodModal').classList.remove('hidden'); }
-  
   window.renderProdSettings = function() {
       $('prodSetList').innerHTML = P.map((p, i) => `
-        <div class="flex justify-between items-center bg-gray-100 p-2 rounded">
-            <span><b>${p.n}</b> (₦${p.p})</span>
-            <button onclick="delProd(${i})" class="bg-red-500 text-white px-2 rounded text-xs">Del</button>
-        </div>
+        <div class="flex justify-between items-center bg-gray-100 p-2 rounded"><span><b>${p.n}</b> (₦${p.p})</span><button onclick="delProd(${i})" class="bg-red-500 text-white px-2 rounded text-xs">Del</button></div>
       `).join('');
   }
 
   window.addProd = async function() {
-      const n = $('newPName').value.trim();
-      const p = Number($('newPPrice').value);
+      const n = $('newPName').value.trim(), p = Number($('newPPrice').value);
       if(!n || !p) return alert("Enter name and price");
       const id = n.toLowerCase().replace(/\s+/g, '_') + '_' + Math.floor(Math.random()*1000);
-      const newList = [...P, { id, n, p }];
-      await setDoc(doc(db, "settings", "products"), { list: newList });
+      await setDoc(doc(db, "settings", "products"), { list: [...P, { id, n, p }] });
       $('newPName').value = ''; $('newPPrice').value = '';
   }
 
-  window.delProd = async function(idx) {
-      if(!confirm("Delete this product?")) return;
-      const newList = P.filter((_, i) => i !== idx);
-      await setDoc(doc(db, "settings", "products"), { list: newList });
-  }
+  window.delProd = async function(idx) { if(!confirm("Delete this product?")) return; await setDoc(doc(db, "settings", "products"), { list: P.filter((_, i) => i !== idx) }); }
 
   window.setNow = function() { const d = new Date(); $('date').value = d.toISOString().split('T')[0]; $('time').value = d.toTimeString().slice(0, 5); }
   
   window.uiDate = function() {
     const t = $('repType').value, d = new Date(), y = d.getFullYear(), m = (d.getMonth() + 1).toString().padStart(2, '0');
     $('dtPick').innerHTML = t === 'monthly' ? `<input id="mPick" type="month" value="${y}-${m}" class="p-1 border rounded text-xs">` :
-      t === 'yearly' ? `<input id="yPick" type="number" value="${y}" class="p-1 border rounded text-xs w-16">` :
-      `<input id="sDate" type="date" class="p-1 text-xs"><input id="eDate" type="date" class="p-1 text-xs">`;
+      t === 'yearly' ? `<input id="yPick" type="number" value="${y}" class="p-1 border rounded text-xs w-16">` : `<input id="sDate" type="date" class="p-1 text-xs"><input id="eDate" type="date" class="p-1 text-xs">`;
     if (t === 'range') { $('sDate').value = `${y}-${m}-01`; $('eDate').value = `${y}-${m}-${d.getDate()}`; }
   }
 
@@ -1111,34 +1104,51 @@
     $('expDesc').value = ''; $('expAmt').value = ''; editExpIdx = null; $('expBtn').innerText = 'Add'; renExp();
   }
   
-  function renExp() {
-    setT('expTot', fmt(exp.reduce((s, x) => s + x.a, 0)));
-    $('expList').innerHTML = exp.map((x, i) => `<li class="flex justify-between text-xs mt-1"><span>${x.d}: ₦${fmt(x.a)}</span><div><button onclick="edExp(${i})" class="bg-gray-400 text-white px-1 mr-1">E</button><button onclick="delExp(${i})" class="bg-red-500 text-white px-1">X</button></div></li>`).join('');
-  }
+  function renExp() { setT('expTot', fmt(exp.reduce((s, x) => s + x.a, 0))); $('expList').innerHTML = exp.map((x, i) => `<li class="flex justify-between text-xs mt-1"><span>${x.d}: ₦${fmt(x.a)}</span><div><button onclick="edExp(${i})" class="bg-gray-400 text-white px-1 mr-1 admin-only">E</button><button onclick="delExp(${i})" class="bg-red-500 text-white px-1 admin-only">X</button></div></li>`).join(''); }
   window.edExp = function(i) { $('expDesc').value = exp[i].d; $('expAmt').value = exp[i].a; editExpIdx = i; $('expBtn').innerText = 'Upd'; }
   window.delExp = function(i) { exp.splice(i, 1); renExp(); }
 
   window.save = async function() {
-    const c = calc();
-    if (c.day === 0 && !confirm('Zero sales. Continue?')) return;
-    const exT = exp.reduce((s, x) => s + x.a, 0);
-    const rec = {
-      id: editId || Date.now(), dt: $('date').value + ' ' + $('time').value, iso: new Date($('date').value + 'T' + $('time').value).toISOString(),
-      items: Array.from(document.querySelectorAll('.qIn')).map(i => ({ id: i.dataset.id, q: Number(i.value) || 0, r: Number(i.parentElement.querySelector('.rIn').value) || 0 })),
-      exp, prod: c.pTot, misc: c.mSale, tot: c.day, prof: c.day - exT, var: c.vari, fl: c.fl, ch: c.ch, ed: !!editId
-    };
+    const btn = $('saveBtn');
+    btn.disabled = true; 
+    btn.innerText = "Saving...";
 
     try {
-      if (editId) {
-        const target = h.find(r => r.id === editId);
-        if(target) await setDoc(doc(db, "records", target.fid), rec);
-        toast('Updated Cloud');
-      } else {
-        await addDoc(collection(db, "records"), rec);
-        toast('Saved to Cloud');
-      }
-      editMode(false);
-    } catch(e) { alert("Error saving: " + e.message); }
+        const c = calc();
+        if (c.day === 0 && !confirm('Zero sales detected. Are you sure you want to save?')) {
+            throw new Error("Cancelled by user");
+        }
+        
+        const dtVal = $('date').value;
+        const tmVal = $('time').value || "00:00";
+        if(!dtVal) throw new Error("Date is required");
+
+        const isoDate = new Date(`${dtVal}T${tmVal}`).toISOString();
+        const exT = exp.reduce((s, x) => s + x.a, 0);
+        
+        const rec = {
+          id: editId || Date.now(), 
+          dt: `${dtVal} ${tmVal}`, 
+          iso: isoDate,
+          items: Array.from(document.querySelectorAll('.qIn')).map(i => ({ id: i.dataset.id, q: Number(i.value) || 0, r: Number(i.parentElement.querySelector('.rIn').value) || 0 })),
+          exp, prod: c.pTot, misc: c.mSale, tot: c.day, prof: c.day - exT, var: c.vari, fl: c.fl, ch: c.ch, ed: !!editId
+        };
+
+        if (editId) {
+          const target = h.find(r => r.id === editId);
+          if(target) await setDoc(doc(db, "records", target.fid), rec);
+          toast('Updated Cloud');
+        } else {
+          await addDoc(collection(db, "records"), rec);
+          toast('Saved to Cloud');
+        }
+        editMode(false);
+    } catch(e) { 
+        if(e.message !== "Cancelled by user") alert("Error: " + e.message); 
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "SAVE RECORD";
+    }
   }
 
   function render() {
@@ -1152,10 +1162,7 @@
         <td class="border">${r.items.reduce((s, x) => s + x.r, 0)}</td><td class="border">₦${fmt(r.prod)}</td><td class="border">₦${fmt(r.misc)}</td>
         <td class="border font-bold">₦${fmt(r.tot)}</td><td class="border">₦${fmt((r.exp || []).reduce((s, x) => s + x.a, 0))}</td><td class="border">₦${fmt(r.prof)}</td>
         <td class="border ${r.var < 0 ? 'text-red-500' : 'text-blue-500'}">₦${fmt(r.var)}</td>
-        <td class="border flex">
-            <button onclick="load(${r.id})" class="bg-blue-500 text-white px-1">E</button>
-            <button onclick="delRec(${r.id})" class="bg-red-500 text-white px-1 ml-1">X</button>
-        </td></tr>`;
+        <td class="border flex admin-only"><button onclick="load(${r.id})" class="bg-blue-500 text-white px-1">E</button><button onclick="delRec(${r.id})" class="bg-red-500 text-white px-1 ml-1">X</button></td></tr>`;
     }).join('') : '<tr><td colspan="15" class="text-center p-2">No Cloud Data</td></tr>';
 
     setT('allSales', fmt(gS)); setT('allProf', fmt(gP));
@@ -1175,34 +1182,11 @@
     renExp(); calc(); window.scrollTo(0, 0);
   }
 
-  window.delRec = async function(id) {
-      if(confirm("Delete this record permanently?")) {
-          const r = h.find(x => x.id === id);
-          if(r) {
-             await deleteDoc(doc(db, "records", r.fid));
-             toast('Deleted', 'e');
-          }
-      }
-  }
-
-  window.editMode = function(on) {
-    editId = null; $('saveBtn').innerText = 'Save'; $('cancelBtn').classList.add('hidden'); $('inputCard').classList.remove('border-blue-500');
-    document.querySelectorAll('input').forEach(i => { if (!['pCap', 'mCap'].includes(i.id)) i.value = '' });
-    exp = []; renExp(); setNow(); calc();
-  }
-
-  window.saveCap = async function() {
-    const p = val('pCap'), m = val('mCap');
-    await setDoc(doc(db, "settings", "capital"), { p, m });
-  }
+  window.delRec = async function(id) { if(confirm("Delete this record?")) { const r = h.find(x => x.id === id); if(r) { await deleteDoc(doc(db, "records", r.fid)); toast('Deleted', 'e'); } } }
+  window.editMode = function(on) { editId = null; $('saveBtn').innerText = 'SAVE RECORD'; $('cancelBtn').classList.add('hidden'); $('inputCard').classList.remove('border-blue-500'); document.querySelectorAll('input').forEach(i => { if (!['pCap', 'mCap'].includes(i.id)) i.value = '' }); exp = []; renExp(); setNow(); calc(); }
+  window.saveCap = async function() { await setDoc(doc(db, "settings", "capital"), { p: val('pCap'), m: val('mCap') }); }
+  function calcCapStatus() { const p = val('pCap'), m = val('mCap'), tot = p + m, prof = h.reduce((s, r) => s + (r.prof || 0), 0), rem = Math.max(0, tot - prof); setT('cumProfit', fmt(prof)); setT('totCap', fmt(tot)); setT('remCap', fmt(rem) + (rem === 0 && tot > 0 ? ' (Done!)' : '')); }
   
-  function calcCapStatus() {
-      const p = val('pCap'), m = val('mCap'), tot = p + m;
-      const prof = h.reduce((s, r) => s + (r.prof || 0), 0);
-      const rem = Math.max(0, tot - prof);
-      setT('cumProfit', fmt(prof)); setT('totCap', fmt(tot)); setT('remCap', fmt(rem) + (rem === 0 && tot > 0 ? ' (Done!)' : ''));
-  }
-
   window.genPDF = function() {
     const t = $('repType').value, sorted = h.sort((a, b) => new Date(a.iso) - new Date(b.iso));
     let sub = sorted, name = "Report";
@@ -1223,19 +1207,11 @@
 
   window.expCSV = function() {
     if (!h.length) return alert('No Data');
-    const csv = [['Date', ...P.map(p => p.n), 'Remains', 'Prod', 'Misc', 'Total', 'Exp', 'Profit', 'Var', 'InHand', 'Float']]
-      .concat(h.map(r => [r.dt, ...P.map(p => (r.items.find(x => x.id === p.id) || { q: 0 }).q), r.items.reduce((s, x) => s + x.r, 0), r.prod, r.misc, r.tot, (r.exp || []).reduce((s, x) => s + x.a, 0), r.prof, r.var, r.ch, r.fl]))
-      .map(r => r.join(',')).join('\n');
+    const csv = [['Date', ...P.map(p => p.n), 'Remains', 'Prod', 'Misc', 'Total', 'Exp', 'Profit', 'Var', 'InHand', 'Float']].concat(h.map(r => [r.dt, ...P.map(p => (r.items.find(x => x.id === p.id) || { q: 0 }).q), r.items.reduce((s, x) => s + x.r, 0), r.prod, r.misc, r.tot, (r.exp || []).reduce((s, x) => s + x.a, 0), r.prof, r.var, r.ch, r.fl])).map(r => r.join(',')).join('\n');
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = 'starbite_cloud_data.csv'; a.click();
   }
 
-  window.wipe = async function() { 
-    if (confirm('Delete ALL history from Cloud? Cannot undo.')) { 
-       const snap = await getDocs(collection(db, "records"));
-       snap.forEach(d => deleteDoc(doc(db, "records", d.id)));
-       toast('Cloud Cleared', 'e');
-    } 
-  }
+  window.wipe = async function() { if (confirm('Delete ALL history?')) { const snap = await getDocs(collection(db, "records")); snap.forEach(d => deleteDoc(doc(db, "records", d.id))); toast('Cloud Cleared', 'e'); } }
   function toast(m, t = 's') { const el = $('toast'); el.className = t + ' show'; el.innerText = m; setTimeout(() => el.classList.remove('show'), 3000); }
   
   window.$ = $;
@@ -1252,10 +1228,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>STARBITE Pro: Business Dashboard</title>
-  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
   <style>
+    /* SECURITY */
+    body.is-staff .admin-only { display: none !important; }
+
     :root { --primary: #007bff; --success: #28a745; --danger: #dc3545; --warning: #ffc107; --bg: #f4f7f6; --dark: #343a40; --purple: #6f42c1; }
     body { font-family: 'Segoe UI', sans-serif; margin: 15px; background-color: var(--bg); padding-bottom: 70px; }
+    
+    /* DASHBOARD CARDS */
     .dash-row { display: flex; gap: 10px; margin-bottom: 15px; }
     .dash-card { flex: 1; background: white; padding: 10px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: center; border-bottom: 3px solid transparent; }
     .dash-card h4 { margin: 0; font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
@@ -1263,47 +1243,49 @@
     .d-green { border-bottom-color: var(--success); } .d-green .dash-val { color: var(--success); }
     .d-blue { border-bottom-color: var(--primary); } .d-blue .dash-val { color: var(--primary); }
     .d-purp { border-bottom-color: var(--purple); } .d-purp .dash-val { color: var(--purple); }
+    
+    /* MAIN CARD STYLES */
     .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 15px; }
+    .settings-card { background: #fff3cd; border: 1px solid #ffeeba; }
+    
     h2, h3 { color: var(--primary); margin: 0 0 10px 0; }
     input, button, select { padding: 12px; margin: 5px 0; border: 1px solid #ccc; border-radius: 8px; width: 100%; box-sizing: border-box; font-size: 16px; }
+    
     button { cursor: pointer; background-color: var(--primary); color: white; border: none; font-weight: bold; transition: 0.2s; }
     button:active { transform: scale(0.98); }
     .btn-print { background-color: var(--dark); color: #fff; }
     .btn-edit { background-color: var(--warning); color: #000; }
     .btn-shelf { background-color: #6c757d; color: #fff; }
     .btn-wa { background-color: #25D366; color: white; font-weight: 900; }
+    
     .row { display: flex; gap: 8px; align-items: center; }
     .device-box { flex: 1; text-align: center; background: #f8f9fa; padding: 5px; border-radius: 8px; border: 1px solid #eee; }
     .device-box label { font-size: 11px; display: block; color: #666; }
+    
+    /* TICKET STYLES */
     .ticket { border-left: 6px solid var(--primary); padding: 12px; margin-bottom: 12px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); position: relative; }
     .timer-area { background: #e3f2fd; padding: 10px; border-radius: 6px; margin: 10px 0; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
     .time-val { font-family: 'Courier New', monospace; font-size: 18px; font-weight: bold; color: #333; }
     .time-val.danger { color: #d32f2f; font-weight: 900; font-size: 20px; animation: pulse 2s infinite; }
     @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
     .code-badge { background: #333; color: #fff; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 14px; font-weight: bold; }
+    
     .status-bar { position: fixed; bottom: 0; left: 0; width: 100%; text-align: center; padding: 5px; color: white; font-size: 12px; z-index: 100; }
     .on { background: var(--success); } .off { background: var(--danger); }
+    
+    /* MODAL */
     .modal { display: none; position: fixed; z-index: 200; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; }
     .modal-content { background: #fff; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; max-height: 90vh; overflow-y: auto; }
     
-    /* --- SECURE RECEIPT STYLES --- */
+    /* RECEIPT STYLES */
     #receiptPreview { 
-        font-family: 'Courier New', monospace; 
-        text-align: center; 
-        border: 4px double #333; 
-        padding: 15px; 
-        margin-bottom: 15px; 
-        background: #fff; 
-        color: black; 
-        position: relative;
-        overflow: hidden;
+        font-family: 'Courier New', monospace; text-align: center; border: 4px double #333; padding: 15px; margin-bottom: 15px; 
+        background: #fff; color: black; position: relative; overflow: hidden;
     }
     #receiptPreview::before {
-        content: "VOID IF ALTERED";
-        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg);
+        content: "VOID IF ALTERED"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg);
         font-size: 24px; color: rgba(0,0,0,0.05); white-space: nowrap; pointer-events: none;
     }
-
     .r-code-box { border: 3px solid #000; padding: 5px; margin: 10px auto; display: inline-block; }
     .r-code-text { font-size: 28px; font-weight: 900; letter-spacing: 2px; }
     .r-cut-line { border-top: 2px dashed #000; margin: 20px 0 10px 0; position: relative; }
@@ -1314,16 +1296,32 @@
 
     .pill-paid { background: #d4edda; color: #155724; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; }
     .pill-owe { background: #f8d7da; color: #721c24; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; }
-    @media print { body * { visibility: hidden; } #printArea, #printArea * { visibility: visible; } #printArea { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; } .modal { position: absolute; left: 0; top: 0; width: 100%; height: auto; background: white; display: block !important; } .modal-content { width: 100%; margin: 0; padding: 0; box-shadow: none; } button, h3 { display: none !important; } }
+    
+    @media print { 
+        body * { visibility: hidden; } #printArea, #printArea * { visibility: visible; } 
+        #printArea { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; } 
+        .modal { position: absolute; left: 0; top: 0; width: 100%; height: auto; background: white; display: block !important; } 
+        .modal-content { width: 100%; margin: 0; padding: 0; box-shadow: none; } button, h3 { display: none !important; } 
+    }
   </style>
 </head>
 <body>
 
   <h2>⚡️ STARBITE CHARGING BUS.</h2>
 
+  <details class="card settings-card admin-only">
+    <summary style="font-weight:bold; cursor:pointer;">⚙️ Update Standard Prices</summary>
+    <div style="display:flex; gap:10px; margin-top:10px;">
+      <div class="device-box"><label>1 PHONE ₦</label><input type="number" id="setPh" value="200"></div>
+      <div class="device-box"><label>1 P-BANK ₦</label><input type="number" id="setPb" value="300"></div>
+    </div>
+    <p style="font-size:11px; color:#666; margin-top:5px;">Note: "Others" (Torch/MP3) price is entered manually during sale.</p>
+    <button onclick="saveSettings()" class="btn-edit" style="width:100%; margin-top:5px;">💾 SAVE PRICES GLOBALLY</button>
+  </details>
+
   <div class="dash-row">
-    <div class="dash-card d-green"><h4>Cash Today</h4><div class="dash-val" id="valCash">₦0</div></div>
-    <div class="dash-card d-blue"><h4>Pending</h4><div class="dash-val" id="valPending">₦0</div></div>
+    <div class="dash-card d-green admin-only"><h4>Cash Today</h4><div class="dash-val" id="valCash">₦0</div></div>
+    <div class="dash-card d-blue admin-only"><h4>Pending</h4><div class="dash-val" id="valPending">₦0</div></div>
     <div class="dash-card d-purp"><h4>Devices</h4><div class="dash-val" id="valCount">0</div></div>
   </div>
 
@@ -1342,11 +1340,23 @@
     </div>
 
     <div class="row">
-      <div class="device-box"><label>PHONES</label><input type="number" id="phCount" value="1" min="0"></div>
+      <div class="device-box"><label>PHONES</label><input type="number" id="phCount" value="0" min="0"></div>
       <div class="device-box"><label>P-BANKS</label><input type="number" id="pbCount" value="0" min="0"></div>
-      <div class="device-box"><label>CHARGERS</label><input type="number" id="chCount" value="0" min="0"></div>
     </div>
-    <input type="number" id="price" value="200" placeholder="Price">
+
+    <div class="row" style="margin-top:5px; background:#fff3cd; padding:5px; border-radius:5px;">
+      <div class="device-box" style="background:transparent; border:none;">
+          <label style="color:#856404; font-weight:bold;">OTHERS QTY</label>
+          <input type="number" id="otCount" value="0" min="0" placeholder="0">
+      </div>
+      <div class="device-box" style="background:transparent; border:none; flex:2;">
+          <label style="color:#856404; font-weight:bold;">OTHERS TOTAL PRICE (₦)</label>
+          <input type="number" id="otPrice" value="0" min="0" placeholder="Enter Price">
+      </div>
+    </div>
+    
+    <input type="number" id="price" value="0" placeholder="Total Price (Auto)" style="font-weight:bold; color:#007bff;">
+    
     <button onclick="saveTicket()" id="saveBtn">✅ START CHARGING</button>
     <button id="cancelEditBtn" style="display:none; background:#666;" onclick="cancelEdit()">Cancel Edit</button>
   </div>
@@ -1377,19 +1387,71 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, updateDoc, doc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, updateDoc, doc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     
     // [[INJECT_CONFIG]]
+    
+    // APPLY SECURITY
+    if(typeof USER_ROLE !== 'undefined' && USER_ROLE === 'staff') {
+        document.body.classList.add('is-staff');
+    }
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const col = collection(db, "tickets");
+
+    let priceConfig = { ph: 200, pb: 300 };
+
+    async function initPrices() {
+        try {
+            const docRef = doc(db, "config", "prices");
+            const snap = await getDoc(docRef);
+            if (snap.exists()) {
+                priceConfig = snap.data();
+                document.getElementById('setPh').value = priceConfig.ph;
+                document.getElementById('setPb').value = priceConfig.pb;
+            } else {
+                await setDoc(docRef, priceConfig);
+            }
+            autoCalc();
+        } catch(e) { console.error("Price load error", e); }
+    }
+    initPrices();
+
+    window.saveSettings = async () => {
+        const newPrices = {
+            ph: Number(document.getElementById('setPh').value),
+            pb: Number(document.getElementById('setPb').value)
+        };
+        try {
+            await setDoc(doc(db, "config", "prices"), newPrices);
+            priceConfig = newPrices;
+            autoCalc();
+            alert("✅ Prices Saved Globally!");
+        } catch(e) { alert("Error: " + e.message); }
+    };
+
+    window.autoCalc = () => {
+        const ph = Number(document.getElementById('phCount').value) || 0;
+        const pb = Number(document.getElementById('pbCount').value) || 0;
+        const otPrice = Number(document.getElementById('otPrice').value) || 0;
+        
+        const total = (ph * priceConfig.ph) + (pb * priceConfig.pb) + otPrice;
+        document.getElementById('price').value = total;
+    };
+
+    ['phCount', 'pbCount', 'otPrice'].forEach(id => {
+        document.getElementById(id).addEventListener('input', window.autoCalc);
+    });
+
     let ticketsData = [], editId = null;
-    let currentReceiptData = null; // Store for WA sharing
+    let currentReceiptData = null;
+
+    onSnapshot(query(col, orderBy("ts", "desc")), (snap) => { 
+        ticketsData = snap.docs.map(d => ({ ...d.data(), id: d.id, jsDate: d.data().ts ? d.data().ts.toDate() : new Date() })); 
+        render(); 
+    });
     
-    onSnapshot(query(col, orderBy("ts", "desc")), (snap) => { ticketsData = snap.docs.map(d => ({ ...d.data(), id: d.id, jsDate: d.data().ts ? d.data().ts.toDate() : new Date() })); render(); });
-    
-    // === ALGORITHM: FIND N AVAILABLE SOCKETS ===
     function getNextSockets(neededCount) {
         const active = ticketsData.filter(t => !t.collected);
         const used = active.flatMap(t => t.sockets || []); 
@@ -1402,7 +1464,6 @@
         return assigned;
     }
 
-    // === SECURITY CODE GENERATOR ===
     function genSecCode(id, price) {
         return `SEC-${id.substring(0,4).toUpperCase()}-${price}-${Math.floor(Math.random()*99)}`;
     }
@@ -1417,10 +1478,10 @@
         
         const ph = +document.getElementById('phCount').value;
         const pb = +document.getElementById('pbCount').value;
-        const ch = +document.getElementById('chCount').value;
+        const ot = +document.getElementById('otCount').value; 
+        const otPrice = +document.getElementById('otPrice').value;
         
-        // Chargers (ch) do NOT count as Sockets
-        const socketsNeeded = ph + pb; 
+        const socketsNeeded = ph + pb + ot; 
 
         let assignedSockets = [];
         if(!editId) {
@@ -1429,7 +1490,8 @@
 
         const data = { 
             name, phone, sockets: assignedSockets, payStatus, code: ticketCode, 
-            ph, pb, ch, price: +document.getElementById('price').value, collected: false 
+            ph, pb, ot, otPrice,
+            price: +document.getElementById('price').value, collected: false 
         }; 
 
         try { 
@@ -1439,7 +1501,6 @@
                 cancelEdit(); 
             } else { 
                 const docRef = await addDoc(col, { ...data, charged: false, ts: serverTimestamp() }); 
-                // Add Security Code after creation (using ID)
                 const secCode = genSecCode(docRef.id, data.price);
                 await updateDoc(doc(db, "tickets", docRef.id), { secCode });
                 
@@ -1455,9 +1516,10 @@
         document.getElementById('custName').value = t.name; 
         document.getElementById('custPhone').value = t.phone || "";
         document.getElementById('payStatus').value = t.payStatus || "Later"; 
-        document.getElementById('phCount').value = t.ph; 
-        document.getElementById('pbCount').value = t.pb; 
-        document.getElementById('chCount').value = t.ch; 
+        document.getElementById('phCount').value = t.ph || 0; 
+        document.getElementById('pbCount').value = t.pb || 0; 
+        document.getElementById('otCount').value = t.ot || 0; 
+        document.getElementById('otPrice').value = t.otPrice || 0; 
         document.getElementById('price').value = t.price; 
         document.getElementById('formAction').innerText = "Editing Ticket"; 
         document.getElementById('saveBtn').innerText = "💾 UPDATE"; 
@@ -1466,7 +1528,6 @@
 
     window.cancelEdit = () => { editId = null; resetForm(); document.getElementById('formAction').innerText = "New Customer"; document.getElementById('saveBtn').innerText = "✅ START CHARGING"; document.getElementById('cancelEditBtn').style.display = "none"; };
     
-    // === NEW: Unplug/Shelf Function ===
     window.moveToShelf = async (id) => {
         if(confirm("Device full? Move to Shelf and free socket?")) {
             await updateDoc(doc(db, "tickets", id), { sockets: [] });
@@ -1490,7 +1551,7 @@
         const todayStr = new Date().toLocaleDateString(); 
         const todaysCash = ticketsData.filter(t => { const isToday = (t.collDate === todayStr) || (t.jsDate.toLocaleDateString() === todayStr); const isPaid = t.collected || t.payStatus === 'Now'; return isToday && isPaid; }).reduce((sum, t) => sum + (t.price || 0), 0);
         const pendingCash = active.filter(t => t.payStatus !== 'Now').reduce((sum, t) => sum + (t.price || 0), 0); 
-        const todaysCount = ticketsData.filter(t => (t.collDate === todayStr || t.jsDate.toLocaleDateString() === todayStr)).reduce((sum, t) => sum + (t.ph||0) + (t.pb||0) + (t.ch||0), 0); 
+        const todaysCount = ticketsData.filter(t => (t.collDate === todayStr || t.jsDate.toLocaleDateString() === todayStr)).reduce((sum, t) => sum + (t.ph||0) + (t.pb||0) + (t.ot||0), 0); 
         
         document.getElementById('valCash').innerText = "₦" + todaysCash.toLocaleString(); 
         document.getElementById('valPending').innerText = "₦" + pendingCash.toLocaleString(); 
@@ -1517,7 +1578,7 @@
             <small>Out: ${t.collDate||'?'}</small> 
             <div style="float:right;">
                 <button style="padding:5px; margin-right:5px;" onclick="revertCollection('${t.id}')">↩️</button>
-                <button style="padding:5px; background:#dc3545; color:white; border:none; border-radius:4px; cursor:pointer;" onclick="deleteTicket('${t.id}')">🗑️</button>
+                <button class="btn-red btn-tbl admin-only" onclick="deleteTicket('${t.id}')">🗑️</button>
             </div>
         </div>`; 
         
@@ -1526,7 +1587,7 @@
         return `<div class="ticket">
             <div style="display:flex; justify-content:space-between"><div><b>${t.name}</b> ${sockStr}</div><div>${badge} <span class="code-badge">#${code}</span></div></div>
             <div class="timer-area"><span>In: ${plugTime}</span><span class="time-val" id="timer-${t.id}">0h 0m</span></div>
-            <small>📱${t.ph} 🔋${t.pb} 🔌${t.ch} | ₦${t.price}</small>
+            <small>📱${t.ph} 🔋${t.pb} 🔦${t.ot||0} | ₦${t.price}</small>
             <div class="row" style="margin-top:5px">
                 <button class="btn-print" onclick="openPrintModal('${t.id}')">🖨️</button>
                 <button class="btn-edit" onclick="startEdit('${t.id}')">✏️</button>
@@ -1538,7 +1599,6 @@
 
     function updateTimers() { const now = new Date(); ticketsData.filter(t => !t.collected).forEach(t => { const el = document.getElementById(`timer-${t.id}`); if(!el) return; const diffMins = Math.floor((now - t.jsDate) / 60000); const h = Math.floor(diffMins / 60), m = diffMins % 60; el.innerText = `${h}h ${m}m`; if (h >= 3) el.classList.add('danger'); else el.classList.remove('danger'); }); } setInterval(updateTimers, 1000);
     
-    // === MODAL WITH TEXT GENERATION & SECURITY ===
     window.openPrintModal = (id, data=null, newCode=null) => { 
         let t = data, dObj = new Date(), code = newCode; 
         if(!t) { 
@@ -1548,9 +1608,7 @@
         currentReceiptData = { ...t, code, dObj };
         
         const secCode = t.secCode || genSecCode(id, t.price);
-        const totalItems = (t.ph || 0) + (t.pb || 0) + (t.ch || 0);
-        // CHANGED HERE: Loop now includes chargers (t.ch) to generate stickers for them too
-        const stickerCount = (t.ph || 0) + (t.pb || 0) + (t.ch || 0); 
+        const stickerCount = (t.ph || 0) + (t.pb || 0) + (t.ot || 0); 
         let stickersHTML = ""; for(let i=0; i<stickerCount; i++) stickersHTML += `<div class="sticker">#${code}</div>`; 
         const payTxt = t.payStatus === 'Now' ? "PAID" : "pay latter";
         const socketDisplay = (t.sockets && Array.isArray(t.sockets)) ? t.sockets.join(', ') : (t.socket || "N/A");
@@ -1559,7 +1617,7 @@
             <div class="r-header">STARBITE CHARGING</div><div class="r-date">${dObj.toLocaleString()}</div>
             <div class="r-code-box"><div class="r-code-text">#${code}</div></div>
             <div style="text-align:left; font-size:14px; margin:10px 0;"><div><b>Customer:</b> ${t.name.toUpperCase()}</div><div style="font-weight:bold; font-size:16px; margin:5px 0;">Sockets: ${socketDisplay}</div>
-            <div class="r-row"><span>Items:</span><span>${totalItems}</span></div>
+            <div class="r-row"><span>Items:</span><span>${stickerCount}</span></div>
             <div style="border-top:1px dashed #000; font-weight:bold; margin-top:5px; display:flex; justify-content:space-between;"><span>TOTAL:</span><span>₦${t.price} (${payTxt})</span></div>
             <div class="secure-hash">SECURE ID: ${secCode}</div>
             <div style="text-align:center; font-style:italic; font-size:11px; margin-top:10px; border:1px solid #ccc; padding:3px;">NOTE: Check your device before leaving.</div></div>
@@ -1567,17 +1625,13 @@
         document.getElementById('modalPrint').style.display = 'flex'; 
     };
 
-    // --- UPDATED: DIRECT WHATSAPP TEXT ---
     window.sendWAText = () => {
         if(!currentReceiptData) return;
         const t = currentReceiptData;
         const payTxt = t.payStatus === 'Now' ? "PAID" : "pay later";
-        
         let phone = t.phone ? t.phone.replace(/\D/g, '') : '';
         if(phone.startsWith('0')) phone = '234' + phone.substring(1);
-        
         const secCode = t.secCode || "N/A";
-        
         const text = `🧾 *STARBITE CHARGING RECEIPT*\n` +
                      `📅 Date: ${t.dObj.toLocaleDateString()} ${t.dObj.toLocaleTimeString()}\n` +
                      `👤 Customer: ${t.name}\n` +
@@ -1585,7 +1639,7 @@
                      `----------------\n` +
                      `📱 Phones: ${t.ph}\n` +
                      `🔋 P-Banks: ${t.pb}\n` +
-                     `🔌 Chargers: ${t.ch}\n` +
+                     `🔦 Others: ${t.ot || 0}\n` +
                      `----------------\n` +
                      `💰 *TOTAL: ₦${t.price} (${payTxt})*\n` +
                      `🔒 Secure ID: ${secCode}\n` +
@@ -1599,7 +1653,16 @@
     window.collectAll = async (id) => { if(confirm("Mark as Collected?")) await updateDoc(doc(db, "tickets", id), { collected: true, collDate: new Date().toLocaleDateString() }); };
     window.revertCollection = async (id) => { if(confirm("Re-Activate?")) await updateDoc(doc(db, "tickets", id), { collected: false }); };
     
-    function resetForm() { document.getElementById('custName').value = ""; document.getElementById('custPhone').value = ""; document.getElementById('payStatus').value = "Later"; document.getElementById('phCount').value = 1; document.getElementById('pbCount').value = 0; document.getElementById('chCount').value = 0; document.getElementById('price').value = 200; }
+    function resetForm() { 
+        document.getElementById('custName').value = ""; 
+        document.getElementById('custPhone').value = ""; 
+        document.getElementById('payStatus').value = "Later"; 
+        document.getElementById('phCount').value = 0; 
+        document.getElementById('pbCount').value = 0; 
+        document.getElementById('otCount').value = 0; 
+        document.getElementById('otPrice').value = 0; 
+        autoCalc();
+    }
     
     const upSt = () => { document.getElementById('status').className = navigator.onLine ? "status-bar on" : "status-bar off"; document.getElementById('status').innerText = navigator.onLine ? "CONNECTED" : "OFFLINE"; };
     window.addEventListener('online', upSt); window.addEventListener('offline', upSt); upSt(); window.render = render;
@@ -1612,7 +1675,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Master Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -1751,4 +1814,4 @@
 </textarea>
 
 </body>
-</html> 
+</html>
