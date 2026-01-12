@@ -77,7 +77,7 @@
             <input type="password" id="pinInput" class="login-input" placeholder="PIN" maxlength="4">
             <button class="login-btn" onclick="checkLogin()">UNLOCK</button>
             <div id="loginError" class="login-error">Incorrect PIN</div>
-            <p style="font-size:10px; color:#555; margin-top:15px;"></p>
+            <p style="font-size:10px; color:#555; margin-top:15px;">1111 (Admin) | 2222 (Staff)</p>
         </div>
     </div>
 
@@ -139,12 +139,12 @@
             "2222": { name: "Staff", role: "staff" }
         };
 
-        let currentUserRole = 'staff'; 
+        let currentUserRole = 'staff'; // Default safety
 
         function checkLogin() {
             const pin = document.getElementById('pinInput').value;
             if (USERS[pin]) {
-                currentUserRole = USERS[pin].role; 
+                currentUserRole = USERS[pin].role; // Store Role
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('mainNav').style.visibility = 'visible';
                 document.getElementById('mainContainer').style.visibility = 'visible';
@@ -1227,24 +1227,22 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>STARBITE Pro: Business Dashboard</title>
+  <title>STARBITE Pro: Charging</title>
   <style>
     /* SECURITY */
     body.is-staff .admin-only { display: none !important; }
 
-    :root { --primary: #007bff; --success: #28a745; --danger: #dc3545; --warning: #ffc107; --bg: #f4f7f6; --dark: #343a40; --purple: #6f42c1; }
+    :root { --primary: #007bff; --success: #28a745; --danger: #dc3545; --warning: #ffc107; --bg: #f4f7f6; --dark: #343a40; }
     body { font-family: 'Segoe UI', sans-serif; margin: 15px; background-color: var(--bg); padding-bottom: 70px; }
     
-    /* DASHBOARD CARDS */
+    /* CARDS */
     .dash-row { display: flex; gap: 10px; margin-bottom: 15px; }
     .dash-card { flex: 1; background: white; padding: 10px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: center; border-bottom: 3px solid transparent; }
-    .dash-card h4 { margin: 0; font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
     .dash-val { font-size: 20px; font-weight: 900; color: #333; margin-top: 5px; }
     .d-green { border-bottom-color: var(--success); } .d-green .dash-val { color: var(--success); }
     .d-blue { border-bottom-color: var(--primary); } .d-blue .dash-val { color: var(--primary); }
-    .d-purp { border-bottom-color: var(--purple); } .d-purp .dash-val { color: var(--purple); }
+    .d-purp { border-bottom-color: #6f42c1; } .d-purp .dash-val { color: #6f42c1; }
     
-    /* MAIN CARD STYLES */
     .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 15px; }
     .settings-card { background: #fff3cd; border: 1px solid #ffeeba; }
     
@@ -1273,10 +1271,16 @@
     .status-bar { position: fixed; bottom: 0; left: 0; width: 100%; text-align: center; padding: 5px; color: white; font-size: 12px; z-index: 100; }
     .on { background: var(--success); } .off { background: var(--danger); }
     
-    /* MODAL */
+    /* MODALS */
     .modal { display: none; position: fixed; z-index: 200; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; }
     .modal-content { background: #fff; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; max-height: 90vh; overflow-y: auto; }
     
+    /* COLLECTION MODAL SPECIFIC */
+    .collect-row { display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding:10px 0; }
+    .collect-label { font-weight:bold; }
+    .collect-info { font-size:12px; color:#666; }
+    .collect-input { width:60px !important; text-align:center; padding:5px !important; margin:0 !important; }
+
     /* RECEIPT STYLES */
     #receiptPreview { 
         font-family: 'Courier New', monospace; text-align: center; border: 4px double #333; padding: 15px; margin-bottom: 15px; 
@@ -1296,7 +1300,8 @@
 
     .pill-paid { background: #d4edda; color: #155724; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; }
     .pill-owe { background: #f8d7da; color: #721c24; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; }
-    
+    .pill-part { background: #e2e3e5; color: #383d41; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; }
+
     @media print { 
         body * { visibility: hidden; } #printArea, #printArea * { visibility: visible; } 
         #printArea { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; } 
@@ -1307,7 +1312,7 @@
 </head>
 <body>
 
-  <h2>⚡️ STARBITE CHARGING BUS.</h2>
+  <h2>⚡️ STARBITE CHARGING</h2>
 
   <details class="card settings-card admin-only">
     <summary style="font-weight:bold; cursor:pointer;">⚙️ Update Standard Prices</summary>
@@ -1315,14 +1320,14 @@
       <div class="device-box"><label>1 PHONE ₦</label><input type="number" id="setPh" value="200"></div>
       <div class="device-box"><label>1 P-BANK ₦</label><input type="number" id="setPb" value="300"></div>
     </div>
-    <p style="font-size:11px; color:#666; margin-top:5px;">Note: "Others" (Torch/MP3) price is entered manually during sale.</p>
+    <p style="font-size:11px; color:#666; margin-top:5px;">Note: "Others" price is entered manually.</p>
     <button onclick="saveSettings()" class="btn-edit" style="width:100%; margin-top:5px;">💾 SAVE PRICES GLOBALLY</button>
   </details>
 
   <div class="dash-row">
     <div class="dash-card d-green admin-only"><h4>Cash Today</h4><div class="dash-val" id="valCash">₦0</div></div>
     <div class="dash-card d-blue admin-only"><h4>Pending</h4><div class="dash-val" id="valPending">₦0</div></div>
-    <div class="dash-card d-purp"><h4>Devices</h4><div class="dash-val" id="valCount">0</div></div>
+    <div class="dash-card d-purp"><h4>Active Devices</h4><div class="dash-val" id="valCount">0</div></div>
   </div>
 
   <div class="card">
@@ -1350,7 +1355,7 @@
           <input type="number" id="otCount" value="0" min="0" placeholder="0">
       </div>
       <div class="device-box" style="background:transparent; border:none; flex:2;">
-          <label style="color:#856404; font-weight:bold;">OTHERS TOTAL PRICE (₦)</label>
+          <label style="color:#856404; font-weight:bold;">OTHERS PRICE (₦)</label>
           <input type="number" id="otPrice" value="0" min="0" placeholder="Enter Price">
       </div>
     </div>
@@ -1379,9 +1384,46 @@
       <div id="receiptPreview"></div>
       <div style="display:flex; gap:10px; margin-top:5px;">
           <button class="btn-print" style="flex:1;" onclick="window.print()">🖨️ PRINT</button>
-          <button class="btn-wa" style="flex:2;" onclick="sendWAText()">📱 SEND TEXT VIA WA</button>
+          <button class="btn-wa" style="flex:2;" onclick="sendWAText()">📱 WHATSAPP</button>
       </div>
       <button style="background:#666; margin-top:5px; width:100%" onclick="document.getElementById('modalPrint').style.display='none'">Close</button>
+    </div>
+  </div>
+
+  <div id="mod-collect" class="modal">
+    <div class="modal-content">
+        <h3>📦 Device Collection</h3>
+        <p style="font-size:12px; color:#666;">Enter quantity being collected <b>NOW</b>:</p>
+        
+        <input type="hidden" id="col-id">
+        
+        <div class="collect-row" id="row-ph">
+            <div>
+                <div class="collect-label">Phones</div>
+                <div class="collect-info">Total: <span id="col-tot-ph">0</span> | Left: <span id="col-rem-ph">0</span></div>
+            </div>
+            <input type="number" id="in-col-ph" class="collect-input" value="0" min="0">
+        </div>
+
+        <div class="collect-row" id="row-pb">
+            <div>
+                <div class="collect-label">P-Banks</div>
+                <div class="collect-info">Total: <span id="col-tot-pb">0</span> | Left: <span id="col-rem-pb">0</span></div>
+            </div>
+            <input type="number" id="in-col-pb" class="collect-input" value="0" min="0">
+        </div>
+
+        <div class="collect-row" id="row-ot">
+            <div>
+                <div class="collect-label">Others</div>
+                <div class="collect-info">Total: <span id="col-tot-ot">0</span> | Left: <span id="col-rem-ot">0</span></div>
+            </div>
+            <input type="number" id="in-col-ot" class="collect-input" value="0" min="0">
+        </div>
+
+        <button class="btn-green" onclick="confirmCollect()">✅ Confirm Collection</button>
+        <button class="btn-blue" style="margin-top:5px;" onclick="quickCollectAll()">🚀 Collect ALL Remaining</button>
+        <button class="btn-red" style="margin-top:5px;" onclick="document.getElementById('mod-collect').style.display='none'">Cancel</button>
     </div>
   </div>
 
@@ -1435,7 +1477,6 @@
         const ph = Number(document.getElementById('phCount').value) || 0;
         const pb = Number(document.getElementById('pbCount').value) || 0;
         const otPrice = Number(document.getElementById('otPrice').value) || 0;
-        
         const total = (ph * priceConfig.ph) + (pb * priceConfig.pb) + otPrice;
         document.getElementById('price').value = total;
     };
@@ -1482,7 +1523,6 @@
         const otPrice = +document.getElementById('otPrice').value;
         
         const socketsNeeded = ph + pb + ot; 
-
         let assignedSockets = [];
         if(!editId) {
              assignedSockets = getNextSockets(socketsNeeded); 
@@ -1491,19 +1531,28 @@
         const data = { 
             name, phone, sockets: assignedSockets, payStatus, code: ticketCode, 
             ph, pb, ot, otPrice,
+            // Track Collection Progress
+            colPh: 0, colPb: 0, colOt: 0,
             price: +document.getElementById('price').value, collected: false 
         }; 
 
         try { 
             if(editId) { 
-                const { code, sockets, ...uData } = data; 
+                const { code, sockets, ...uData } = data;
+                // Don't overwrite existing collection progress on edit unless necessary
+                // For simplicity in edit, we keep existing counts if they exist
+                const existing = ticketsData.find(x => x.id === editId);
+                if(existing) {
+                    uData.colPh = existing.colPh || 0;
+                    uData.colPb = existing.colPb || 0;
+                    uData.colOt = existing.colOt || 0;
+                }
                 await updateDoc(doc(db, "tickets", editId), uData); 
                 cancelEdit(); 
             } else { 
                 const docRef = await addDoc(col, { ...data, charged: false, ts: serverTimestamp() }); 
                 const secCode = genSecCode(docRef.id, data.price);
                 await updateDoc(doc(db, "tickets", docRef.id), { secCode });
-                
                 resetForm(); 
                 openPrintModal(docRef.id, { ...data, secCode }, ticketCode); 
             } 
@@ -1540,6 +1589,90 @@
         }
     };
 
+    // === PARTIAL COLLECTION LOGIC ===
+
+    window.openCollect = (id) => {
+        const t = ticketsData.find(x => x.id === id);
+        if(!t) return;
+        
+        document.getElementById('col-id').value = id;
+        
+        // Setup Phones
+        const remPh = (t.ph || 0) - (t.colPh || 0);
+        document.getElementById('col-tot-ph').innerText = t.ph || 0;
+        document.getElementById('col-rem-ph').innerText = remPh;
+        document.getElementById('in-col-ph').max = remPh;
+        document.getElementById('in-col-ph').value = 0;
+        document.getElementById('row-ph').style.display = (t.ph > 0 && remPh > 0) ? 'flex' : 'none';
+
+        // Setup PB
+        const remPb = (t.pb || 0) - (t.colPb || 0);
+        document.getElementById('col-tot-pb').innerText = t.pb || 0;
+        document.getElementById('col-rem-pb').innerText = remPb;
+        document.getElementById('in-col-pb').max = remPb;
+        document.getElementById('in-col-pb').value = 0;
+        document.getElementById('row-pb').style.display = (t.pb > 0 && remPb > 0) ? 'flex' : 'none';
+
+        // Setup Others
+        const remOt = (t.ot || 0) - (t.colOt || 0);
+        document.getElementById('col-tot-ot').innerText = t.ot || 0;
+        document.getElementById('col-rem-ot').innerText = remOt;
+        document.getElementById('in-col-ot').max = remOt;
+        document.getElementById('in-col-ot').value = 0;
+        document.getElementById('row-ot').style.display = (t.ot > 0 && remOt > 0) ? 'flex' : 'none';
+
+        document.getElementById('mod-collect').style.display = 'flex';
+    };
+
+    window.quickCollectAll = async () => {
+        const id = document.getElementById('col-id').value;
+        const t = ticketsData.find(x => x.id === id);
+        if(confirm("Confirm user collected EVERYTHING?")) {
+            await updateDoc(doc(db, "tickets", id), { 
+                colPh: t.ph || 0, colPb: t.pb || 0, colOt: t.ot || 0,
+                collected: true, collDate: new Date().toLocaleDateString() 
+            });
+            document.getElementById('mod-collect').style.display = 'none';
+        }
+    };
+
+    window.confirmCollect = async () => {
+        const id = document.getElementById('col-id').value;
+        const t = ticketsData.find(x => x.id === id);
+        
+        const takePh = Number(document.getElementById('in-col-ph').value) || 0;
+        const takePb = Number(document.getElementById('in-col-pb').value) || 0;
+        const takeOt = Number(document.getElementById('in-col-ot').value) || 0;
+
+        if(takePh === 0 && takePb === 0 && takeOt === 0) return alert("Please select items to collect.");
+
+        const newColPh = (t.colPh || 0) + takePh;
+        const newColPb = (t.colPb || 0) + takePb;
+        const newColOt = (t.colOt || 0) + takeOt;
+
+        // Check if fully collected
+        const isFullyCollected = (newColPh >= (t.ph||0)) && (newColPb >= (t.pb||0)) && (newColOt >= (t.ot||0));
+        
+        const updateData = {
+            colPh: newColPh, colPb: newColPb, colOt: newColOt
+        };
+
+        if(isFullyCollected) {
+            updateData.collected = true;
+            updateData.collDate = new Date().toLocaleDateString();
+        }
+
+        await updateDoc(doc(db, "tickets", id), updateData);
+        document.getElementById('mod-collect').style.display = 'none';
+    };
+
+    window.revertCollection = async (id) => { 
+        if(confirm("Re-Activate Ticket?")) {
+            // Reset collection counts to 0 when reverting
+            await updateDoc(doc(db, "tickets", id), { collected: false, colPh:0, colPb:0, colOt:0 }); 
+        }
+    };
+
     function render() { 
         const term = document.getElementById('histSearch').value.toLowerCase(); 
         const active = ticketsData.filter(t => !t.collected); 
@@ -1555,7 +1688,11 @@
         
         document.getElementById('valCash').innerText = "₦" + todaysCash.toLocaleString(); 
         document.getElementById('valPending').innerText = "₦" + pendingCash.toLocaleString(); 
-        document.getElementById('valCount').innerText = todaysCount; 
+        document.getElementById('valCount').innerText = active.reduce((s, t) => {
+            // Active count = Total items - Collected items
+            const left = (t.ph||0 + t.pb||0 + t.ot||0) - (t.colPh||0 + t.colPb||0 + t.colOt||0);
+            return s + left;
+        }, 0);
         updateTimers(); 
     }
 
@@ -1573,6 +1710,20 @@
 
         const badge = t.payStatus === 'Now' ? '<span class="pill-paid">PAID</span>' : '<span class="pill-owe">OWE</span>';
         
+        // Calculate Remainders
+        const rPh = (t.ph||0) - (t.colPh||0);
+        const rPb = (t.pb||0) - (t.colPb||0);
+        const rOt = (t.ot||0) - (t.colOt||0);
+        
+        // If some items collected, show a "Partial" badge
+        const partial = ((t.colPh||0)+(t.colPb||0)+(t.colOt||0) > 0 && !t.collected) ? '<span class="pill-part">PARTIAL</span>' : '';
+
+        // Display string logic
+        let devStr = "";
+        if(rPh > 0) devStr += `📱${rPh}/${t.ph} `;
+        if(rPb > 0) devStr += `🔋${rPb}/${t.pb} `;
+        if(rOt > 0) devStr += `🔦${rOt}/${t.ot} `;
+
         if(isHistory) return `<div class="ticket history-style">
             <b>${t.name}</b> <span class="code-badge">#${code}</span> ${badge}<br>
             <small>Out: ${t.collDate||'?'}</small> 
@@ -1585,14 +1736,14 @@
         const plugTime = t.jsDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}); 
         
         return `<div class="ticket">
-            <div style="display:flex; justify-content:space-between"><div><b>${t.name}</b> ${sockStr}</div><div>${badge} <span class="code-badge">#${code}</span></div></div>
+            <div style="display:flex; justify-content:space-between"><div><b>${t.name}</b> ${sockStr}</div><div>${badge} ${partial} <span class="code-badge">#${code}</span></div></div>
             <div class="timer-area"><span>In: ${plugTime}</span><span class="time-val" id="timer-${t.id}">0h 0m</span></div>
-            <small>📱${t.ph} 🔋${t.pb} 🔦${t.ot||0} | ₦${t.price}</small>
+            <small>${devStr} | ₦${t.price}</small>
             <div class="row" style="margin-top:5px">
                 <button class="btn-print" onclick="openPrintModal('${t.id}')">🖨️</button>
                 <button class="btn-edit" onclick="startEdit('${t.id}')">✏️</button>
                 <button class="btn-shelf" onclick="moveToShelf('${t.id}')">🔌</button>
-                <button style="background:var(--success)" onclick="collectAll('${t.id}')">Collect</button>
+                <button style="background:var(--success)" onclick="openCollect('${t.id}')">Collect</button>
             </div>
         </div>`; 
     }
@@ -1651,7 +1802,6 @@
     }
 
     window.collectAll = async (id) => { if(confirm("Mark as Collected?")) await updateDoc(doc(db, "tickets", id), { collected: true, collDate: new Date().toLocaleDateString() }); };
-    window.revertCollection = async (id) => { if(confirm("Re-Activate?")) await updateDoc(doc(db, "tickets", id), { collected: false }); };
     
     function resetForm() { 
         document.getElementById('custName').value = ""; 
@@ -1814,4 +1964,4 @@
 </textarea>
 
 </body>
-</html>
+    </html>
