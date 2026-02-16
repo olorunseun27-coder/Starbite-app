@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Starbite App V74 (No Card Required)</title>
+    <title>Starbite App V75 (With Menu Button)</title>
     <style>
         /* --- GLOBAL & THEME VARIABLES --- */
         :root { 
@@ -283,6 +283,8 @@
     </div>
 
     <div class="container">
+        <button onclick="window.openModal()" style="width:100%; margin: 0 0 15px 0; padding:15px; background:#333; color:white; border:none; border-radius:8px; font-weight:bold; font-size:16px; cursor:pointer; box-shadow:0 3px 10px rgba(0,0,0,0.1);">⚙️ Manage Menu / Add Items</button>
+
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
             <span id="userEmailDisplay" style="font-size:12px; opacity:0.7; font-weight:bold;"></span>
             <button onclick="logout()" style="background:var(--red); color:white; border:none; padding:6px 12px; border-radius:15px; font-size:11px;">🚪 Logout</button>
@@ -775,7 +777,7 @@
             .catch(e=>alert("Error: " + e.message));
     }
 
-    // --- CUSTOMER MENU LOGIC (V74 - NO-CARD IMAGE SUPPORT) ---
+    // --- CUSTOMER MENU LOGIC (V75 - NO-CARD IMAGE SUPPORT) ---
     const snackImages = {
         "meat pie": "https://images.unsplash.com/photo-1572383672419-ab47799639dd?auto=format&fit=crop&w=500&q=80",
         "chicken pie": "https://images.unsplash.com/photo-1572383672419-ab47799639dd?auto=format&fit=crop&w=500&q=80",
@@ -830,7 +832,7 @@
                 const btnText = isAvail ? 'Add' : 'Sold Out';
                 const btnState = isAvail ? `onclick="addToCustCart('${d.id}')"` : 'disabled';
                 
-                // V74: Handle Base64 strings directly!
+                // V75: Handle Base64 strings directly!
                 const customImg = i.image;
                 const demoImg = getProductImage(i.name);
                 const finalImg = customImg || demoImg;
@@ -1336,7 +1338,7 @@
     
     window.delSale = async (id) => { if(confirm("Delete record?")) await deleteDoc(doc(db,"sales",id)); }
     
-    // --- ADD ITEM LOGIC (V74 - NO-CARD COMPRESSION) ---
+    // --- ADD ITEM LOGIC (V75 - NO-CARD COMPRESSION) ---
     window.addSnackToFirebase = async () => {
         const n = document.getElementById('newItemName').value;
         const p = document.getElementById('newItemPrice').value;
@@ -1621,4 +1623,4 @@
     }
 </script>
 </body>
-                </html>
+    </html>
