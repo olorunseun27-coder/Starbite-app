@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Starbite App V75 (With Menu Button)</title>
+    <title>Starbite App V71 (Visual Menu)</title>
+    
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+
     <style>
         /* --- GLOBAL & THEME VARIABLES --- */
         :root { 
@@ -51,7 +54,7 @@
         /* --- CUSTOMER SECTIONS (PROFESSIONAL) --- */
         #customerOrderSection { display: none; width: 100%; max-width: 500px; margin: 0 auto; padding: 15px; box-sizing: border-box; padding-bottom: 100px; }
 
-        /* MENU GRID */
+        /* V71 NEW MENU GRID */
         .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 10px 0; }
         .menu-card { 
             background: white; 
@@ -62,10 +65,10 @@
             position: relative; 
             overflow: hidden; 
             transition: 0.2s; 
-            padding-bottom: 10px; 
+            padding-bottom: 10px; /* Space for buttons */
         }
         
-        /* IMAGE STYLES */
+        /* V71 IMAGE STYLES */
         .menu-img-box {
             width: 100%;
             height: 110px;
@@ -87,7 +90,7 @@
         .menu-card.sold-out { opacity: 0.6; pointer-events: none; background: #f9f9f9; }
         .menu-card.sold-out::after { content: "SOLD OUT"; position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg); color: var(--red); font-weight: bold; border: 2px solid var(--red); padding: 5px 10px; border-radius: 5px; opacity: 1; font-size: 12px; white-space: nowrap; z-index: 10; background: rgba(255,255,255,0.8); }
 
-        .menu-icon { font-size: 40px; display: block; margin-top: 20px; } 
+        .menu-icon { font-size: 40px; display: block; margin-top: 20px; } /* Fallback only */
         
         .menu-details { padding: 10px 8px 0 8px; }
         .menu-title { font-weight: bold; font-size: 14px; margin-bottom: 4px; display: block; color: #333; height: 36px; display: flex; align-items: flex-start; justify-content: center; overflow: hidden; line-height: 1.2; }
@@ -263,7 +266,15 @@
         </div>
     </div>
 
-    <button onclick="submitCustomerOrder()" class="auth-btn" style="margin-top:15px; background:var(--primary);">✅ Confirm Order</button>
+    <div style="background:#e8f5e9; border:1px solid #c8e6c9; padding:12px; border-radius:8px; margin-top:15px; text-align:center;">
+        <h4 style="margin:0 0 5px 0; color:#2e7d32; font-size:14px;">💰 Payment Details</h4>
+        <p style="margin:0; font-size:13px;">Bank: <b>Your Bank Name</b></p>
+        <p style="margin:0; font-size:13px;">Acct Name: <b>Your Name</b></p>
+        <p style="margin:8px 0; font-size:20px; font-weight:bold; letter-spacing:2px; color:#333; background:white; display:inline-block; padding:5px 10px; border-radius:5px; border:1px dashed #28a745;">0123456789</p>
+        <br>
+        <small style="color:#555; font-size:11px;">Please transfer the total amount above.</small>
+    </div>
+    <button onclick="submitCustomerOrder()" id="confirmOrderBtn" class="auth-btn" style="margin-top:15px; background:var(--primary);">✅ Notify Payment & Confirm Order</button>
 </div>
 
 <div id="snackManagerTab" class="tab-content">
@@ -283,8 +294,6 @@
     </div>
 
     <div class="container">
-        <button onclick="window.openModal()" style="width:100%; margin: 0 0 15px 0; padding:15px; background:#333; color:white; border:none; border-radius:8px; font-weight:bold; font-size:16px; cursor:pointer; box-shadow:0 3px 10px rgba(0,0,0,0.1);">⚙️ Manage Menu / Add Items</button>
-
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
             <span id="userEmailDisplay" style="font-size:12px; opacity:0.7; font-weight:bold;"></span>
             <button onclick="logout()" style="background:var(--red); color:white; border:none; padding:6px 12px; border-radius:15px; font-size:11px;">🚪 Logout</button>
@@ -481,18 +490,12 @@
     <input type="text" id="newItemName" placeholder="Snack Name">
     <input type="number" id="newItemPrice" placeholder="Price">
     
-    <div style="margin: 15px 0;">
-        <label style="font-size:12px; font-weight:bold; display:block; margin-bottom:5px;">Upload Product Photo (From Phone):</label>
-        <input type="file" id="newItemFile" accept="image/*" style="padding:10px; border:1px dashed #aaa; width:100%; box-sizing:border-box;">
-        <div id="uploadProgress" style="font-size:11px; color:#555; display:none;">Compressing image... please wait</div>
-    </div>
-    
     <div style="margin-bottom:15px; display:flex; align-items:center; gap:10px; background:#f9f9f9; padding:10px; border-radius:5px;">
         <input type="checkbox" id="newItemAvail" checked style="width:auto; margin:0;">
         <label for="newItemAvail" style="font-size:13px; font-weight:bold;">Item is Available (In Stock)</label>
     </div>
 
-    <button id="addItemBtn" class="btn-main" style="background:var(--green);" onclick="addSnackToFirebase()">Add Item</button>
+    <button class="btn-main" style="background:var(--green);" onclick="addSnackToFirebase()">Add Item</button>
     <div style="max-height: 200px; overflow-y: auto; margin-top: 15px;">
         <ul id="menuListUL" class="modal-list"></ul>
     </div>
@@ -576,7 +579,7 @@
 <div id="toast">Notification</div>
 
 <script type="module">
-    // --- IMPORTS (NO STORAGE NEEDED) ---
+    // --- IMPORTS ---
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
     import { getFirestore, collection, addDoc, onSnapshot, getDoc, getDocs, setDoc, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, where } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
@@ -596,6 +599,10 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
     
+    // --- EMAILJS INIT ---
+    // STEP 1: REPLACE 'YOUR_PUBLIC_KEY' BELOW
+    emailjs.init("YOUR_PUBLIC_KEY"); 
+
     // --- STATE VARIABLES ---
     let currentBasket = [];
     let salesData = [];
@@ -662,8 +669,13 @@
                         document.querySelector('.bottom-nav').style.display = 'flex';
                         loadAdminData(); // Only load admin data if admin
                     } else {
-                        // Customer Logic
-                        window.currentCustomer = { name: userData.name, phone: userData.phone, address: userData.address };
+                        // Customer Logic: Added email to local state for notifications
+                        window.currentCustomer = { 
+                            name: userData.name, 
+                            phone: userData.phone, 
+                            address: userData.address,
+                            email: user.email 
+                        };
                         document.getElementById('welcomeName').innerText = userData.name.split(' ')[0];
                         document.getElementById('customerOrderSection').style.display = 'block';
                         loadPublicMenu(); // Only load menu
@@ -777,7 +789,9 @@
             .catch(e=>alert("Error: " + e.message));
     }
 
-    // --- CUSTOMER MENU LOGIC (V75 - NO-CARD IMAGE SUPPORT) ---
+    // --- CUSTOMER MENU LOGIC (V71 - REAL IMAGES) ---
+    // High-quality public placeholder images for demo.
+    // In a real app, you would upload specific images to Firebase Storage.
     const snackImages = {
         "meat pie": "https://images.unsplash.com/photo-1572383672419-ab47799639dd?auto=format&fit=crop&w=500&q=80",
         "chicken pie": "https://images.unsplash.com/photo-1572383672419-ab47799639dd?auto=format&fit=crop&w=500&q=80",
@@ -799,7 +813,7 @@
         for (const [key, url] of Object.entries(snackImages)) {
             if (lower.includes(key)) return url;
         }
-        return null;
+        return null; // Return null to trigger emoji fallback
     }
 
     function getFallbackIcon(name) {
@@ -832,14 +846,11 @@
                 const btnText = isAvail ? 'Add' : 'Sold Out';
                 const btnState = isAvail ? `onclick="addToCustCart('${d.id}')"` : 'disabled';
                 
-                // V75: Handle Base64 strings directly!
-                const customImg = i.image;
-                const demoImg = getProductImage(i.name);
-                const finalImg = customImg || demoImg;
-                
+                // Determine Image or Icon
+                const imgUrl = getProductImage(i.name);
                 let visualContent = '';
-                if(finalImg) {
-                    visualContent = `<div class="menu-img-box"><img src="${finalImg}" class="menu-img" alt="${i.name}" onerror="this.style.display='none'; this.parentElement.innerHTML='<span class=\\'menu-icon\\'>${getFallbackIcon(i.name)}</span>'"></div>`;
+                if(imgUrl) {
+                    visualContent = `<div class="menu-img-box"><img src="${imgUrl}" class="menu-img" alt="${i.name}"></div>`;
                 } else {
                     visualContent = `<span class="menu-icon">${getFallbackIcon(i.name)}</span>`;
                 }
@@ -918,6 +929,7 @@
                 btn.style.display = 'none';
                 ctrl.style.display = 'flex';
                 input.value = window.custOrder[id];
+                // Visual feedback for selected item could be added here
             } else {
                 btn.style.display = 'block';
                 ctrl.style.display = 'none';
@@ -976,26 +988,39 @@
         document.getElementById('finalCheckoutTotal').innerText = total.toLocaleString();
     }
 
+    // --- SUBMIT ORDER WITH EMAIL NOTIFICATION ---
     window.submitCustomerOrder = async () => {
         if(!window.currentCustomer) { alert("Session Error. Please reload."); return; }
         
+        const btn = document.getElementById('confirmOrderBtn');
+        btn.innerText = "Sending...";
+        btn.disabled = true;
+
         const note = document.getElementById('checkoutNote').value;
         const deliveryFee = parseInt(document.getElementById('deliveryZone').value) || 0;
         const deliverySel = document.getElementById('deliveryZone');
         const deliveryText = deliverySel.options[deliverySel.selectedIndex].text;
         
         let items = [];
+        let itemsString = "";
         for (const [id, qty] of Object.entries(window.custOrder)) {
             if (qty > 0 && window.custMenuRef[id]) {
-                items.push(`${window.custMenuRef[id].name} (${qty})`);
+                let txt = `${window.custMenuRef[id].name} (${qty})`;
+                items.push(txt);
+                itemsString += txt + "\n";
             }
         }
 
-        if(items.length === 0) return;
+        if(items.length === 0) {
+            btn.innerText = "Confirm Order";
+            btn.disabled = false;
+            return;
+        }
 
         const total = (window.cartSubtotal || 0) + deliveryFee;
 
         try {
+            // 1. Write to Firestore
             await addDoc(collection(db, "orders"), {
                 custName: window.currentCustomer.name,
                 custPhone: window.currentCustomer.phone,
@@ -1007,25 +1032,48 @@
                 status: "Pending",
                 timestamp: serverTimestamp()
             });
+
+            // 2. Send Notification via EmailJS
+            // STEP 2: REPLACE 'YOUR_SERVICE_ID' and 'YOUR_TEMPLATE_ID'
+            const templateParams = {
+                customer_name: window.currentCustomer.name,
+                customer_email: window.currentCustomer.email || "No Email",
+                order_details: itemsString + "\nNote: " + (note || "None") + "\nTotal: ₦" + total,
+            };
             
-            // Reset
+            // This sends the email. 
+            // If you removed the placeholders above, this will fail.
+            try {
+                await emailjs.send('YOUR_SERVICE_ID', 'YOUR_TEMPLATE_ID', templateParams);
+                console.log("Email Notification Sent");
+            } catch (emailErr) {
+                console.error("Email failed:", emailErr);
+                // We don't stop the order if email fails, but we log it.
+            }
+
+            // 3. Reset UI
             window.custOrder = {};
             window.cartSubtotal = 0;
             updateCartUI();
             
             Object.keys(window.custMenuRef).forEach(id => {
-                 const btn = document.getElementById('btn_'+id);
-                 const ctrl = document.getElementById('ctrl_'+id);
-                 if(btn && ctrl) {
-                     btn.style.display='block'; ctrl.style.display='none';
-                 }
+                 const b = document.getElementById('btn_'+id);
+                 const c = document.getElementById('ctrl_'+id);
+                 if(b && c) { b.style.display='block'; c.style.display='none'; }
             });
 
             document.getElementById('checkoutModal').style.display = 'none';
             document.getElementById('modalOverlay').style.display = 'none';
             
-            alert("✅ Order Sent Successfully!");
-        } catch(e) { alert("Error sending order: " + e.message); }
+            // 4. In-App Notification
+            alert("✅ Order Sent! Owner Notified.\nPlease check your bank app to complete payment.");
+            
+        } catch(e) { 
+            alert("Error sending order: " + e.message); 
+        } finally {
+            btn.innerText = "✅ Notify Payment & Confirm Order";
+            btn.disabled = false;
+        }
     }
 
 
@@ -1338,92 +1386,21 @@
     
     window.delSale = async (id) => { if(confirm("Delete record?")) await deleteDoc(doc(db,"sales",id)); }
     
-    // --- ADD ITEM LOGIC (V75 - NO-CARD COMPRESSION) ---
+    // ADD ITEM LOGIC (UPDATED WITH AVAILABILITY)
     window.addSnackToFirebase = async () => {
         const n = document.getElementById('newItemName').value;
         const p = document.getElementById('newItemPrice').value;
         const avail = document.getElementById('newItemAvail').checked;
-        const fileInput = document.getElementById('newItemFile');
-        const btn = document.getElementById('addItemBtn');
-
-        if(!n || !p) { alert("Please enter Name and Price"); return; }
-        
-        btn.disabled = true;
-        btn.innerText = "Processing...";
-
-        let finalImageBase64 = "";
-
-        // 1. COMPRESS AND CONVERT TO BASE64
-        if(fileInput.files.length > 0) {
-            const file = fileInput.files[0];
-            const progress = document.getElementById('uploadProgress');
-            progress.style.display = 'block';
-            
-            try {
-                // Use a helper function to resize image to max 600px width
-                finalImageBase64 = await resizeImage(file, 600, 0.7); 
-                progress.innerText = "Compression complete!";
-            } catch(e) {
-                alert("Image Error: " + e.message);
-                btn.disabled = false; btn.innerText = "Add Item";
-                progress.style.display = 'none';
-                return;
-            }
-        }
-
-        // 2. Save to Firestore (Image stored as Text string inside the document)
-        try {
+        if(n && p) { 
             await addDoc(collection(db,"menu"), {
                 name: n, 
                 price: Number(p),
-                isAvailable: avail,
-                image: finalImageBase64 // Saving the huge text string here
+                isAvailable: avail 
             }); 
-            
-            // Cleanup
             document.getElementById('newItemName').value=''; 
             document.getElementById('newItemPrice').value=''; 
-            document.getElementById('newItemFile').value='';
-            document.getElementById('uploadProgress').style.display = 'none';
-            showToast("Item Added Successfully"); 
-        } catch(e) {
-            alert("Error saving item: " + e.message);
+            showToast("Item Added"); 
         }
-        
-        btn.disabled = false;
-        btn.innerText = "Add Item";
-    }
-
-    // --- IMAGE RESIZER HELPER ---
-    function resizeImage(file, maxWidth, quality) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = (event) => {
-                const img = new Image();
-                img.src = event.target.result;
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    let width = img.width;
-                    let height = img.height;
-
-                    if (width > maxWidth) {
-                        height *= maxWidth / width;
-                        width = maxWidth;
-                    }
-
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-                    
-                    // Convert to compact JPEG Base64
-                    resolve(canvas.toDataURL('image/jpeg', quality));
-                };
-                img.onerror = (e) => reject(e);
-            };
-            reader.onerror = (e) => reject(e);
-        });
     }
 
     window.delMenu = async (id) => { if(confirm("Delete item?")) await deleteDoc(doc(db,"menu",id)); }
@@ -1623,4 +1600,4 @@
     }
 </script>
 </body>
-    </html>
+                        </html>
