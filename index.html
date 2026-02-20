@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Starbite App V71 (Visual Menu)</title>
+    <title>Starbite App V73 (Image Uploader)</title>
     
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 
@@ -224,8 +224,16 @@
             <h2 style="margin:0; color:#333;">👋 Hi, <span id="welcomeName">User</span></h2>
             <p style="margin:0; font-size:12px; color:#777;">What are you craving today?</p>
         </div>
-        <button onclick="logout()" style="font-size:11px; background:#f8d7da; color:#721c24; border:none; padding:5px 10px; border-radius:15px; cursor:pointer;">Logout</button>
+        
+        <div style="display:flex; gap:5px;">
+            <button onclick="window.openOrderHistory()" style="font-size:11px; background:var(--blue); color:white; border:none; padding:5px 10px; border-radius:15px; cursor:pointer;">📜 History</button>
+            <button onclick="logout()" style="font-size:11px; background:#f8d7da; color:#721c24; border:none; padding:5px 10px; border-radius:15px; cursor:pointer;">Logout</button>
+        </div>
     </div>
+
+    <input type="text" id="custMenuSearch" placeholder="🔍 Search menu..." 
+       style="width:100%; padding:12px; border:1px solid #ddd; border-radius:30px; margin-bottom:15px; text-align:center; box-sizing:border-box; outline:none; box-shadow: 0 2px 5px rgba(0,0,0,0.05);"
+       onkeyup="window.filterCustMenu()">
 
     <div id="menuGrid" class="menu-grid">
         <p style="grid-column: span 2; text-align:center; color:#777;">Loading delicious menu...</p>
@@ -268,8 +276,8 @@
 
     <div style="background:#e8f5e9; border:1px solid #c8e6c9; padding:12px; border-radius:8px; margin-top:15px; text-align:center;">
         <h4 style="margin:0 0 5px 0; color:#2e7d32; font-size:14px;">💰 Payment Details</h4>
-        <p style="margin:0; font-size:13px;">Bank: <b>Opay</b></p>
-        <p style="margin:0; font-size:13px;">Acct Name: <b>Olorunleke samuel seun</b></p>
+        <p style="margin:0; font-size:13px;">Bank: <b>opay</b></p>
+        <p style="margin:0; font-size:13px;">Acct Name: <b>Olorunleke s.samuel</b></p>
         <p style="margin:8px 0; font-size:20px; font-weight:bold; letter-spacing:2px; color:#333; background:white; display:inline-block; padding:5px 10px; border-radius:5px; border:1px dashed #28a745;">8148180535</p>
         <br>
         <small style="color:#555; font-size:11px;">Please transfer the total amount above.</small>
@@ -300,7 +308,10 @@
         </div>
 
         <div class="box">
-            <h3 style="margin-top:0">🛒 New Sale</h3>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <h3 style="margin:0">🛒 New Sale</h3>
+                <button onclick="window.openModal()" style="background:#6f42c1; color:white; border:none; padding:5px 10px; border-radius:5px; font-size:12px; cursor:pointer;">⚙️ Manage Products</button>
+            </div>
             
             <label style="font-size:11px; font-weight:bold; opacity:0.7;">Sale Date:</label>
             <input type="datetime-local" id="saleDate" style="margin-bottom:10px;">
@@ -432,6 +443,13 @@
     <div id="marketHistoryList" style="max-height:300px; overflow-y:auto;"></div>
 </div>
 
+<div id="orderHistoryModal" class="modal-box" style="display:none; width:90%; max-height:80vh; overflow-y:auto;">
+    <span class="close-btn" onclick="document.getElementById('orderHistoryModal').style.display='none'; document.getElementById('modalOverlay').style.display='none'">&times;</span>
+    <h3 style="margin-top:0;">📜 My Past Orders</h3>
+    <p style="font-size:12px; color:#777; margin-bottom:15px;">Track your order status here.</p>
+    <div id="historyListContent">Loading...</div>
+</div>
+
 <div id="dlReportModal" class="modal-box" style="display:none; text-align:center;">
     <span class="close-btn" onclick="closeModal()">&times;</span>
     <h3>📊 Record Center</h3>
@@ -486,17 +504,24 @@
 
 <div id="menuModal" class="modal-box" style="display:none">
     <span class="close-btn" onclick="closeModal()">&times;</span>
-    <h3>⚙️ Manage Menu</h3>
-    <input type="text" id="newItemName" placeholder="Snack Name">
-    <input type="number" id="newItemPrice" placeholder="Price">
+    <h3>⚙️ Manage Products</h3>
+    <p style="font-size:12px; opacity:0.7;">Add new snacks or remove old ones.</p>
     
-    <div style="margin-bottom:15px; display:flex; align-items:center; gap:10px; background:#f9f9f9; padding:10px; border-radius:5px;">
+    <input type="text" id="newItemName" placeholder="Snack Name (e.g. Meat Pie)">
+    <input type="number" id="newItemPrice" placeholder="Price (₦)">
+    
+    <label style="font-size:12px; font-weight:bold; display:block; margin-top:10px;">📸 Upload Image (Optional)</label>
+    <input type="file" id="newItemImg" accept="image/*" style="font-size:12px; background:#f9f9f9;">
+    
+    <div style="margin-bottom:15px; display:flex; align-items:center; gap:10px; background:#f9f9f9; padding:10px; border-radius:5px; margin-top:10px;">
         <input type="checkbox" id="newItemAvail" checked style="width:auto; margin:0;">
         <label for="newItemAvail" style="font-size:13px; font-weight:bold;">Item is Available (In Stock)</label>
     </div>
 
-    <button class="btn-main" style="background:var(--green);" onclick="addSnackToFirebase()">Add Item</button>
-    <div style="max-height: 200px; overflow-y: auto; margin-top: 15px;">
+    <button id="addProdBtn" class="btn-main" style="background:var(--green);" onclick="addSnackToFirebase()">+ Add Product</button>
+    
+    <h4 style="margin:15px 0 5px 0; border-bottom:1px solid #eee; padding-bottom:5px;">Current Menu</h4>
+    <div style="max-height: 200px; overflow-y: auto;">
         <ul id="menuListUL" class="modal-list"></ul>
     </div>
 </div>
@@ -791,7 +816,6 @@
 
     // --- CUSTOMER MENU LOGIC (V71 - REAL IMAGES) ---
     // High-quality public placeholder images for demo.
-    // In a real app, you would upload specific images to Firebase Storage.
     const snackImages = {
         "meat pie": "https://images.unsplash.com/photo-1572383672419-ab47799639dd?auto=format&fit=crop&w=500&q=80",
         "chicken pie": "https://images.unsplash.com/photo-1572383672419-ab47799639dd?auto=format&fit=crop&w=500&q=80",
@@ -846,8 +870,9 @@
                 const btnText = isAvail ? 'Add' : 'Sold Out';
                 const btnState = isAvail ? `onclick="addToCustCart('${d.id}')"` : 'disabled';
                 
-                // Determine Image or Icon
-                const imgUrl = getProductImage(i.name);
+                // Determine Image: PRIORITIZE DB IMAGE (BASE64) OR FALLBACK TO HELPER
+                const imgUrl = i.imageUrl || getProductImage(i.name);
+                
                 let visualContent = '';
                 if(imgUrl) {
                     visualContent = `<div class="menu-img-box"><img src="${imgUrl}" class="menu-img" alt="${i.name}"></div>`;
@@ -914,6 +939,24 @@
             // Reset UI to 'Add' button
             document.getElementById('btn_'+id).style.display = 'block';
             document.getElementById('ctrl_'+id).style.display = 'none';
+        }
+    }
+    
+    // --- NEW SEARCH FILTER LOGIC ---
+    window.filterCustMenu = () => {
+        const input = document.getElementById('custMenuSearch');
+        const filter = input.value.toLowerCase();
+        const grid = document.getElementById('menuGrid');
+        const cards = grid.getElementsByClassName('menu-card');
+
+        for (let i = 0; i < cards.length; i++) {
+            const title = cards[i].getElementsByClassName('menu-title')[0];
+            const txtValue = title.textContent || title.innerText;
+            if (txtValue.toLowerCase().indexOf(filter) > -1) {
+                cards[i].style.display = "";
+            } else {
+                cards[i].style.display = "none";
+            }
         }
     }
 
@@ -1034,7 +1077,7 @@
             });
 
             // 2. Send Notification via EmailJS
-            // STEP 2: REPLACE 'service_4ahwty5' and 'template_v6cbqrs'
+            // STEP 2: REPLACE 'YOUR_SERVICE_ID' and 'YOUR_TEMPLATE_ID'
             const templateParams = {
                 customer_name: window.currentCustomer.name,
                 customer_email: window.currentCustomer.email || "No Email",
@@ -1044,7 +1087,7 @@
             // This sends the email. 
             // If you removed the placeholders above, this will fail.
             try {
-                await emailjs.send('YOUR_SERVICE_ID', 'YOUR_TEMPLATE_ID', templateParams);
+                await emailjs.send('service_4ahwty5', 'template_v6cbqrs', templateParams);
                 console.log("Email Notification Sent");
             } catch (emailErr) {
                 console.error("Email failed:", emailErr);
@@ -1076,6 +1119,62 @@
         }
     }
 
+    // --- NEW FEATURE: CUSTOMER HISTORY ---
+    window.openOrderHistory = async () => {
+        document.getElementById('orderHistoryModal').style.display = 'block';
+        document.getElementById('modalOverlay').style.display = 'block';
+        const list = document.getElementById('historyListContent');
+        list.innerHTML = "<p style='text-align:center;'>Loading your records...</p>";
+        
+        if(!window.currentCustomer || !window.currentCustomer.phone) {
+            list.innerHTML = "<p style='color:red;'>Error: Could not identify your account. Please re-login.</p>";
+            return;
+        }
+
+        try {
+            const q = query(
+                collection(db, "orders"), 
+                where("custPhone", "==", window.currentCustomer.phone),
+                orderBy("timestamp", "desc")
+            );
+            const snap = await getDocs(q);
+            
+            if(snap.empty) {
+                list.innerHTML = "<p style='text-align:center; color:#777;'>You haven't placed any orders yet.</p>";
+                return;
+            }
+            
+            list.innerHTML = "";
+            snap.forEach(d => {
+                const o = d.data();
+                const date = o.timestamp ? o.timestamp.toDate().toLocaleString() : "Unknown Date";
+                
+                let statusColor = '#6c757d'; 
+                let statusIcon = '🕒';
+                if(o.status === 'Approved') { statusColor = 'var(--green)'; statusIcon = '✅'; }
+                if(o.status === 'Pending') { statusColor = '#fd7e14'; statusIcon = '⏳'; }
+                if(o.status === 'Archived') { statusColor = '#dc3545'; statusIcon = '🗑️'; }
+
+                list.innerHTML += `
+                <div style="border:1px solid #eee; padding:12px; border-radius:10px; margin-bottom:10px; background:#fff; box-shadow:0 2px 4px rgba(0,0,0,0.03);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding-bottom:8px; border-bottom:1px dashed #eee;">
+                        <span style="font-size:11px; font-weight:bold; color:#555;">${date}</span>
+                        <span style="color:${statusColor}; font-weight:bold; font-size:12px; background:rgba(0,0,0,0.05); padding:3px 8px; border-radius:10px;">
+                            ${statusIcon} ${o.status.toUpperCase()}
+                        </span>
+                    </div>
+                    <div style="font-size:13px; color:#333; line-height:1.4; margin-bottom:8px;">${o.items}</div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        ${o.note ? `<span style="font-size:11px; background:#fff3cd; color:#856404; padding:2px 5px; border-radius:3px;">📝 Note added</span>` : '<span></span>'}
+                        <span style="font-weight:bold; font-size:15px; color:var(--primary);">₦${o.total.toLocaleString()}</span>
+                    </div>
+                </div>`;
+            });
+        } catch(e) {
+            console.error(e);
+            list.innerHTML = `<p style='color:red;'>Error loading history: ${e.message}</p>`;
+        }
+    }
 
     // --- ADMIN DATA LOADERS ---
     function loadAdminData() {
@@ -1091,7 +1190,10 @@
                 const i = d.data(); menuData.push({id:d.id, ...i});
                 sel.innerHTML += `<option value="${d.id}">${i.name} - ₦${i.price}</option>`;
                 ul.innerHTML += `<li class="modal-list-item">
-                    <span>${i.name} (₦${i.price}) ${i.isAvailable===false?'<b style="color:red">[SOLD OUT]</b>':''}</span> 
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        ${i.imageUrl ? `<img src="${i.imageUrl}" style="width:30px; height:30px; object-fit:cover; border-radius:4px;">` : '<span>🍲</span>'}
+                        <span>${i.name} (₦${i.price}) ${i.isAvailable===false?'<b style="color:red">[SOLD OUT]</b>':''}</span>
+                    </div>
                     <span style="color:red;cursor:pointer" onclick="window.delMenu('${d.id}')">🗑️</span>
                 </li>`;
             });
@@ -1386,21 +1488,64 @@
     
     window.delSale = async (id) => { if(confirm("Delete record?")) await deleteDoc(doc(db,"sales",id)); }
     
-    // ADD ITEM LOGIC (UPDATED WITH AVAILABILITY)
+    // --- ADD ITEM LOGIC (WITH IMAGE TO TEXT COMPRESSOR) ---
+    // 1. Helper: Resize Image & Convert to Base64 Text
+    function compressImage(file) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 300; // Small thumbnail size
+                    const scaleSize = MAX_WIDTH / img.width;
+                    canvas.width = MAX_WIDTH;
+                    canvas.height = img.height * scaleSize;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    resolve(canvas.toDataURL('image/jpeg', 0.7)); // Return text string
+                }
+            }
+        });
+    }
+
+    // 2. Main Add Function
     window.addSnackToFirebase = async () => {
+        const btn = document.getElementById('addProdBtn');
+        btn.innerText = "Saving..."; btn.disabled = true;
+
         const n = document.getElementById('newItemName').value;
         const p = document.getElementById('newItemPrice').value;
         const avail = document.getElementById('newItemAvail').checked;
+        const fileInput = document.getElementById('newItemImg');
+
         if(n && p) { 
+            let imageBase64 = null;
+            // Check if user selected an image
+            if (fileInput.files && fileInput.files[0]) {
+                try {
+                    // Convert picture to text code
+                    imageBase64 = await compressImage(fileInput.files[0]);
+                } catch(e) {
+                    console.error("Image error", e);
+                }
+            }
+
             await addDoc(collection(db,"menu"), {
                 name: n, 
                 price: Number(p),
-                isAvailable: avail 
+                isAvailable: avail,
+                imageUrl: imageBase64 // Save the text string here
             }); 
+            
             document.getElementById('newItemName').value=''; 
             document.getElementById('newItemPrice').value=''; 
+            document.getElementById('newItemImg').value=''; // Clear file input
             showToast("Item Added"); 
         }
+        btn.innerText = "+ Add Product"; btn.disabled = false;
     }
 
     window.delMenu = async (id) => { if(confirm("Delete item?")) await deleteDoc(doc(db,"menu",id)); }
@@ -1600,4 +1745,4 @@
     }
 </script>
 </body>
-    </html>
+                    </html>
